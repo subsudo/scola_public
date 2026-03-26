@@ -35,7 +35,7 @@ public sealed class AppUpdateService
         _updaterDirectoryPath = Path.Combine(App.AppDataDirectoryPath, "Updater");
         _cleanupMarkerPath = Path.Combine(_updatesRootPath, "update-cleanup.json");
         CurrentVersion = ResolveCurrentVersion();
-        CurrentVersionDisplay = CurrentVersion.ToString(3);
+        CurrentVersionDisplay = FormatVersionDisplay(CurrentVersion);
     }
 
     public Version CurrentVersion { get; }
@@ -446,6 +446,16 @@ public sealed class AppUpdateService
         }
 
         return new Version(version.Major, Math.Max(0, version.Minor), Math.Max(0, version.Build));
+    }
+
+    private static string FormatVersionDisplay(Version version)
+    {
+        if (version.Revision > 0)
+        {
+            return $"{version.Major}.{Math.Max(0, version.Minor)}.{Math.Max(0, version.Build)}.{version.Revision}";
+        }
+
+        return $"{version.Major}.{Math.Max(0, version.Minor)}.{Math.Max(0, version.Build)}";
     }
 
     private static string ResolveCurrentExecutablePath()

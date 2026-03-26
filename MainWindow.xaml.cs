@@ -3328,6 +3328,11 @@ public partial class MainWindow : Window
             return $"{productName} 0.0.0";
         }
 
+        if (version.Revision > 0)
+        {
+            return $"{productName} {version.Major}.{Math.Max(0, version.Minor)}.{Math.Max(0, version.Build)}.{version.Revision}";
+        }
+
         return $"{productName} {version.Major}.{Math.Max(0, version.Minor)}.{Math.Max(0, version.Build)}";
     }
 

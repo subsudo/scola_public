@@ -121,7 +121,7 @@ public class WordService
     }
 
     private static void LogWordLifecycleAppState(
-        dynamic? app,
+        object? app,
         WordLifecycleOperationContext? context,
         string stage,
         bool? wasCreatedHere = null,
@@ -135,11 +135,12 @@ public class WordService
         dynamic? docs = null;
         try
         {
-            docs = app.Documents;
+            dynamic wordApp = app;
+            docs = wordApp.Documents;
             var documentCount = TryReadInt(() => (int)docs.Count);
-            var isVisible = TryReadBool(() => (bool)app.Visible);
-            var isUserControl = TryReadBool(() => (bool)app.UserControl);
-            var hwnd = TryReadInt64(() => Convert.ToInt64(app.Hwnd));
+            var isVisible = TryReadBool(() => (bool)wordApp.Visible);
+            var isUserControl = TryReadBool(() => (bool)wordApp.UserControl);
+            var hwnd = TryReadInt64(() => Convert.ToInt64(wordApp.Hwnd));
             var processId = TryGetProcessIdFromHwnd(hwnd);
 
             LogWordLifecycle(
@@ -158,7 +159,7 @@ public class WordService
         LogWordLifecycleProcessSnapshot(context, $"{stage}-WinWordProcesses", app);
     }
 
-    private static void LogWordLifecycleDocumentSnapshot(dynamic? app, WordLifecycleOperationContext? context, string stage)
+    private static void LogWordLifecycleDocumentSnapshot(object? app, WordLifecycleOperationContext? context, string stage)
     {
         if (!IsWordLifecycleLoggingEnabled() || app is null)
         {
@@ -175,13 +176,14 @@ public class WordService
         }
     }
 
-    private static IReadOnlyList<WordDocumentSnapshot> SnapshotOpenDocuments(dynamic app)
+    private static IReadOnlyList<WordDocumentSnapshot> SnapshotOpenDocuments(object app)
     {
         var documents = new List<WordDocumentSnapshot>();
         dynamic? docs = null;
         try
         {
-            docs = app.Documents;
+            dynamic wordApp = app;
+            docs = wordApp.Documents;
             var count = (int)docs.Count;
             for (var i = 1; i <= count; i++)
             {
@@ -226,7 +228,7 @@ public class WordService
 
     private static void LogWordLifecycleFinally(
         WordLifecycleOperationContext? context,
-        dynamic? app,
+        object? app,
         bool openedHere,
         bool operationSucceeded,
         bool shouldQuitCreatedApp,
@@ -247,14 +249,14 @@ public class WordService
     private static void LogWordLifecycleProcessSnapshot(
         WordLifecycleOperationContext? context,
         string stage,
-        dynamic? app = null)
+        object? app = null)
     {
         if (!IsWordLifecycleLoggingEnabled())
         {
             return;
         }
 
-        var attachedProcessId = TryGetWordApplicationProcessId(app);
+        int? attachedProcessId = TryGetWordApplicationProcessId(app);
         var processes = SnapshotRunningWordProcesses();
         LogWordLifecycle(
             context,
@@ -262,7 +264,7 @@ public class WordService
 
         foreach (var process in processes)
         {
-            var isAttached = attachedProcessId is not null && process.ProcessId == attachedProcessId.Value;
+            var isAttached = attachedProcessId.HasValue && process.ProcessId == attachedProcessId.Value;
             var startTimeUtc = process.StartTimeUtc?.ToString("O") ?? "n/a";
             LogWordLifecycle(
                 context,
@@ -330,7 +332,7 @@ public class WordService
             .Trim();
     }
 
-    private static string FormatOptional<T>(T? value)
+    private static string FormatOptional(object? value)
     {
         return value?.ToString() ?? "n/a";
     }
@@ -401,21 +403,22 @@ public class WordService
         }
     }
 
-    private static int? TryGetWordApplicationProcessId(dynamic? app)
+    private static int? TryGetWordApplicationProcessId(object? app)
     {
         if (app is null)
         {
             return null;
         }
 
-        var hwnd = TryReadInt64(() => Convert.ToInt64(app.Hwnd))
+        dynamic wordApp = app;
+        var hwnd = TryReadInt64(() => Convert.ToInt64(wordApp.Hwnd))
                    ?? TryReadComInt64Property(app, "Hwnd");
         if (hwnd is null)
         {
             dynamic? activeWindow = null;
             try
             {
-                activeWindow = app.ActiveWindow;
+                activeWindow = wordApp.ActiveWindow;
                 hwnd = TryReadInt64(() => Convert.ToInt64(activeWindow.Hwnd))
                        ?? TryReadComInt64Property(activeWindow, "Hwnd");
             }
