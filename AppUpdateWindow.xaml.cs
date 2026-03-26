@@ -20,7 +20,9 @@ public partial class AppUpdateWindow : Window
 
         CurrentVersionTextBlock.Text = _appUpdateService.CurrentVersionDisplay;
         NewVersionTextBlock.Text = releaseInfo.VersionString;
-        ReleaseNotesTextBlock.Text = releaseInfo.ReleaseNotes;
+        ReleaseNotesTextBlock.Text = string.IsNullOrWhiteSpace(releaseInfo.ReleaseNotes)
+            ? "Keine zusätzlichen Hinweise verfügbar."
+            : releaseInfo.ReleaseNotes;
         ProgressStatusTextBlock.Text = "Lade Update herunter...";
     }
 

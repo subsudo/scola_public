@@ -134,7 +134,7 @@
                     <TextBlock Margin="0,4,0,0"
                                Foreground="{DynamicResource Brush.SecondaryText}"
                                TextWrapping="Wrap"
-                               Text="Scola hat eine neue stabile Version auf GitHub gefunden." />
+                               Text="Scola hat eine neue Version auf GitHub gefunden." />
                 </StackPanel>
             </Grid>
 
@@ -186,7 +186,7 @@
                         <RowDefinition Height="Auto" />
                     </Grid.RowDefinitions>
 
-                    <TextBlock Text="Hinweise zur neuen Version"
+                    <TextBlock Text="Hinweis zur neuen Version"
                                Foreground="{DynamicResource Brush.SecondaryText}" />
 
                     <ScrollViewer Grid.Row="1"
@@ -225,14 +225,14 @@
                                TextWrapping="Wrap" />
                 </StackPanel>
 
-                <DockPanel Grid.Row="2" Margin="0,16,0,0">
-                    <TextBlock DockPanel.Dock="Left"
-                               VerticalAlignment="Center"
+                <StackPanel Grid.Row="2" Margin="0,16,0,0">
+                    <TextBlock Margin="0,0,0,10"
                                Foreground="{DynamicResource Brush.SubtleText}"
                                FontSize="11"
-                               Text="Der Download erfolgt direkt aus dem neuesten GitHub Release." />
-                    <StackPanel DockPanel.Dock="Right"
-                                Orientation="Horizontal">
+                               Text="Später blendet diese Version für 7 Tage aus."
+                               TextWrapping="Wrap" />
+                    <StackPanel Orientation="Horizontal"
+                                HorizontalAlignment="Left">
                         <Button x:Name="LaterButton"
                                 Margin="0,0,8,0"
                                 MinWidth="120"
@@ -246,7 +246,7 @@
                                 Click="UpdateButton_OnClick"
                                 Content="Jetzt aktualisieren" />
                     </StackPanel>
-                </DockPanel>
+                </StackPanel>
             </Grid>
         </Grid>
     </Border>
