@@ -19,6 +19,8 @@ build-check/
 *.log
 *.tmp
 *.temp
+*.bak
+*.orig
 *.bundle
 
 # Local history / backups
@@ -28,3 +30,4 @@ TestSetup/
 # OS artifacts
 Thumbs.db
 Desktop.ini
+.DS_Store
