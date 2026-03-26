@@ -2806,8 +2806,13 @@ public class WordService
         }
     }
 
-    private static void SafeReleaseCom(params dynamic?[] comObjects)
+    private static void SafeReleaseCom(params object?[]? comObjects)
     {
+        if (comObjects is null)
+        {
+            return;
+        }
+
         foreach (var obj in comObjects)
         {
             if (obj is null) { continue; }
