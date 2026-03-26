@@ -65,6 +65,7 @@ public partial class AppUpdateWindow : Window
                 progress,
                 CancellationToken.None);
 
+            _isDownloading = false;
             DialogResult = true;
             Close();
         }
