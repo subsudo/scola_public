@@ -1,0 +1,30 @@
+# Build artifacts
+bin/
+obj/
+publish/
+build-check/
+
+# IDE / local tooling
+.vs/
+.vscode/
+.idea/
+.claude/
+
+# User-specific Visual Studio files
+*.user
+*.rsuser
+*.suo
+
+# Logs and temp files
+*.log
+*.tmp
+*.temp
+*.bundle
+
+# Local history / backups
+history-backups/
+TestSetup/
+
+# OS artifacts
+Thumbs.db
+Desktop.ini

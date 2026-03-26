@@ -1,0 +1,26 @@
+﻿{
+  "ServerBasePath": "K:\\FuturX\\20_TNinnen",
+  "UseSecondaryServerBasePath": true,
+  "SecondaryServerBasePath": "K:\\FuturX\\20_TNinnen\\02_Lehrbegleitung",
+  "UseTertiaryServerBasePath": false,
+  "TertiaryServerBasePath": "",
+  "ScheduleRootPath": "K:\\FuturX\\10_Arbeitsplanung\\20_Planung\\22_Wochenplanung\\Einteilung TN",
+  "AbsenceValues": [
+    "abwesend",
+    "abwesend entschuldigt",
+    "abwesend unentschuldigt",
+    "abwesend (entschuldigt)",
+    "abwesend (unentschuldigt)"
+  ],
+  "PresenceValues": [
+    "anwesend"
+  ],
+  "VerlaufsakteKeyword": "Verlaufsakte",
+  "WordBookmarkName": "BU_BILDUNG_TABELLE",
+  "WordBuBookmarkName": "_Bildung",
+  "WordBiBookmarkName": "_Berufsintegration",
+  "WordBeBookmarkName": "_Beratung",
+  "WordBiTableBookmarkName": "BI_BERUFSINTEGRATION_TABELLE",
+  "WordBiTodoBookmarkName": "BI_BERUFSINTEGRATION_TODO"
+}
+

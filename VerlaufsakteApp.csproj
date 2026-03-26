@@ -1,0 +1,54 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <AssemblyName>Scola</AssemblyName>
+    <Product>Scola</Product>
+    <Title>Scola</Title>
+    <Version>0.8.2</Version>
+    <AssemblyVersion>0.8.2.0</AssemblyVersion>
+    <FileVersion>0.8.2.0</FileVersion>
+    <ApplicationIcon>Assets\icon.ico</ApplicationIcon>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <PublishSingleFile>true</PublishSingleFile>
+    <SelfContained>true</SelfContained>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.WindowsDesktop.App.WindowsForms" />
+    <Using Remove="System.Windows.Forms" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Remove="ScolaUpdater\**\*.cs" />
+    <EmbeddedResource Remove="ScolaUpdater\**\*" />
+    <Page Remove="ScolaUpdater\**\*" />
+    <None Remove="ScolaUpdater\**\*" />
+    <EmbeddedResource Include="$(IntermediateOutputPath)EmbeddedUpdater\ScolaUpdater.exe">
+      <LogicalName>VerlaufsakteApp.Updater.ScolaUpdater.exe</LogicalName>
+    </EmbeddedResource>
+    <None Remove="BI.docx" />
+    <None Remove="Bi Vorlage.docx" />
+    <None Remove="Bi Vorlage 2.docx" />
+    <EmbeddedResource Include="Bi Vorlage 2.docx">
+      <LogicalName>VerlaufsakteApp.Templates.BiVorlage.docx</LogicalName>
+    </EmbeddedResource>
+  </ItemGroup>
+
+  <Target Name="BuildEmbeddedUpdater" BeforeTargets="CoreCompile">
+    <PropertyGroup>
+      <EmbeddedUpdaterPublishDir>$(MSBuildProjectDirectory)\obj\$(Configuration)\net8.0-windows\win-x64\EmbeddedUpdater\</EmbeddedUpdaterPublishDir>
+    </PropertyGroup>
+    <MakeDir Directories="$(EmbeddedUpdaterPublishDir)" />
+    <MSBuild Projects="$(MSBuildProjectDirectory)\ScolaUpdater\ScolaUpdater.csproj"
+             Targets="Restore;Publish"
+             Properties="Configuration=$(Configuration);RuntimeIdentifier=win-x64;PublishSingleFile=true;SelfContained=true;EnableCompressionInSingleFile=true;PublishTrimmed=false;PublishDir=$(EmbeddedUpdaterPublishDir)" />
+  </Target>
+</Project>

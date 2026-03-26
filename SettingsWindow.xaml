@@ -1,0 +1,549 @@
+<Window x:Class="VerlaufsakteApp.SettingsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Einstellungen"
+        Width="760"
+        MinWidth="740"
+        SizeToContent="Height"
+        ResizeMode="CanResize"
+        WindowStartupLocation="CenterOwner"
+        Background="{DynamicResource Brush.WindowBg}"
+        FontFamily="Segoe UI"
+        FontSize="13">
+    <Window.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVisibility" />
+
+        <Style x:Key="SectionCardStyle" TargetType="Border">
+            <Setter Property="Background" Value="{DynamicResource Brush.PanelBg}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource Brush.Border}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="8" />
+            <Setter Property="Padding" Value="10" />
+        </Style>
+
+        <Style x:Key="PathGroupStyle" TargetType="Border" BasedOn="{StaticResource SectionCardStyle}">
+            <Setter Property="Background" Value="{DynamicResource Brush.InputBg}" />
+            <Setter Property="Padding" Value="9" />
+        </Style>
+
+        <Style x:Key="SectionTitleStyle" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="{DynamicResource Brush.PrimaryText}" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="FontSize" Value="14" />
+        </Style>
+
+        <Style x:Key="SectionSubTitleStyle" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="{DynamicResource Brush.SecondaryText}" />
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="Margin" Value="0,2,0,8" />
+        </Style>
+
+        <Style x:Key="ThemeOptionStyle" TargetType="RadioButton">
+            <Setter Property="Foreground" Value="{DynamicResource Brush.SecondaryText}" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Padding" Value="12,6" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="RadioButton">
+                        <Border x:Name="Root"
+                                Background="Transparent"
+                                BorderBrush="Transparent"
+                                BorderThickness="1"
+                                CornerRadius="6">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="Root" Property="Background" Value="{DynamicResource Brush.Accent}" />
+                                <Setter Property="Foreground" Value="#FFFFFF" />
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Root" Property="Background" Value="{DynamicResource Brush.CardHover}" />
+                            </Trigger>
+                            <MultiTrigger>
+                                <MultiTrigger.Conditions>
+                                    <Condition Property="IsMouseOver" Value="True" />
+                                    <Condition Property="IsChecked" Value="True" />
+                                </MultiTrigger.Conditions>
+                                <Setter TargetName="Root" Property="Background" Value="{DynamicResource Brush.AccentHover}" />
+                            </MultiTrigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="ActionCheckBoxStyle" TargetType="CheckBox">
+            <Setter Property="Foreground" Value="{DynamicResource Brush.PrimaryText}" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Margin" Value="0,0,6,6" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="CheckBox">
+                        <Border x:Name="Root"
+                                Background="{DynamicResource Brush.InputBg}"
+                                BorderBrush="{DynamicResource Brush.Border}"
+                                BorderThickness="1"
+                                CornerRadius="6"
+                                Padding="7,5"
+                                MinWidth="0">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="7" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <Border x:Name="Box"
+                                        Grid.Column="0"
+                                        Width="13"
+                                        Height="13"
+                                        CornerRadius="3"
+                                        BorderBrush="{DynamicResource Brush.SecondaryText}"
+                                        BorderThickness="1"
+                                        Background="Transparent"
+                                        VerticalAlignment="Center">
+                                    <Path x:Name="Tick"
+                                          Data="M 2 6.5 L 4.8 9.2 L 11 3"
+                                          Stroke="#FFFFFF"
+                                          StrokeThickness="1.6"
+                                          StrokeStartLineCap="Round"
+                                          StrokeEndLineCap="Round"
+                                          StrokeLineJoin="Round"
+                                          Visibility="Collapsed" />
+                                </Border>
+                                <ContentPresenter Grid.Column="2"
+                                                  VerticalAlignment="Center" />
+                            </Grid>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Root" Property="BorderBrush" Value="{DynamicResource Brush.InputHoverBorder}" />
+                                <Setter TargetName="Root" Property="Background" Value="{DynamicResource Brush.CardHover}" />
+                            </Trigger>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="Box" Property="Background" Value="{DynamicResource Brush.Accent}" />
+                                <Setter TargetName="Box" Property="BorderBrush" Value="{DynamicResource Brush.Accent}" />
+                                <Setter TargetName="Tick" Property="Visibility" Value="Visible" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="Root" Property="Opacity" Value="0.45" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="SettingsCheckBoxStyle" TargetType="CheckBox">
+            <Setter Property="Foreground" Value="{DynamicResource Brush.PrimaryText}" />
+            <Setter Property="Margin" Value="0,0,0,6" />
+            <Setter Property="Cursor" Value="Hand" />
+        </Style>
+
+        <Style x:Key="PathTextBoxStyle" TargetType="TextBox">
+            <Setter Property="Background" Value="{DynamicResource Brush.InputBg}" />
+            <Setter Property="Foreground" Value="{DynamicResource Brush.PrimaryText}" />
+            <Setter Property="CaretBrush" Value="{DynamicResource Brush.PrimaryText}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource Brush.Border}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Padding" Value="9,6" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TextBox">
+                        <Border x:Name="Root"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="6">
+                            <ScrollViewer x:Name="PART_ContentHost" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Root" Property="BorderBrush" Value="{DynamicResource Brush.InputHoverBorder}" />
+                            </Trigger>
+                            <Trigger Property="IsFocused" Value="True">
+                                <Setter TargetName="Root" Property="BorderBrush" Value="{DynamicResource Brush.Accent}" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="Root" Property="Opacity" Value="0.55" />
+                                <Setter TargetName="Root" Property="Background" Value="{DynamicResource Brush.PanelBg}" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="SecondaryButtonStyle" TargetType="Button">
+            <Setter Property="Foreground" Value="{DynamicResource Brush.PrimaryText}" />
+            <Setter Property="Background" Value="{DynamicResource Brush.PanelBg}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource Brush.Border}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Padding" Value="11,6" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Root"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="16"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Root" Property="Background" Value="{DynamicResource Brush.CardHover}" />
+                                <Setter TargetName="Root" Property="BorderBrush" Value="{DynamicResource Brush.InputHoverBorder}" />
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Root" Property="Background" Value="{DynamicResource Brush.CardHover}" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.45" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="PrimaryButtonStyle" TargetType="Button" BasedOn="{StaticResource SecondaryButtonStyle}">
+            <Setter Property="Foreground" Value="#FFFFFF" />
+            <Setter Property="Background" Value="{DynamicResource Brush.Accent}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource Brush.Accent}" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Root"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="16"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Root" Property="Background" Value="{DynamicResource Brush.AccentHover}" />
+                                <Setter TargetName="Root" Property="BorderBrush" Value="{DynamicResource Brush.AccentHover}" />
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Root" Property="Background" Value="{DynamicResource Brush.AccentPressed}" />
+                                <Setter TargetName="Root" Property="BorderBrush" Value="{DynamicResource Brush.AccentPressed}" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="SettingsComboBoxStyle" TargetType="ComboBox">
+            <Setter Property="Background" Value="{DynamicResource Brush.InputBg}" />
+            <Setter Property="Foreground" Value="{DynamicResource Brush.PrimaryText}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource Brush.Border}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Padding" Value="8,5" />
+            <Setter Property="MinHeight" Value="32" />
+        </Style>
+    </Window.Resources>
+
+    <Border Margin="10"
+            Background="{DynamicResource Brush.WindowBg}"
+            BorderBrush="{DynamicResource Brush.Border}"
+            BorderThickness="1"
+            CornerRadius="10">
+        <Grid Margin="12">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+            <StackPanel Grid.Row="0" Margin="0,0,0,10">
+                <TextBlock Text="Einstellungen"
+                           Foreground="{DynamicResource Brush.PrimaryText}"
+                           FontWeight="SemiBold"
+                           FontSize="18" />
+                <TextBlock Text="Pfade, Darstellung und Verhalten"
+                           Foreground="{DynamicResource Brush.SecondaryText}"
+                           FontSize="12"
+                           Margin="0,2,0,0" />
+            </StackPanel>
+
+            <Border Grid.Row="1"
+                    Style="{StaticResource SectionCardStyle}"
+                    Margin="0,0,0,10">
+                <StackPanel>
+                    <TextBlock Style="{StaticResource SectionTitleStyle}" Text="Datenquellen" />
+                    <TextBlock Style="{StaticResource SectionSubTitleStyle}" Text="TN-Ordner und Stundenplan kompakt verwalten" />
+
+                    <UniformGrid Columns="2" Rows="2">
+                        <Border Style="{StaticResource PathGroupStyle}" Margin="0,0,6,6">
+                            <StackPanel>
+                                <TextBlock Foreground="{DynamicResource Brush.PrimaryText}"
+                                           FontWeight="SemiBold"
+                                           Margin="0,0,0,6"
+                                           Text="Primärpfad" />
+                                <TextBox Style="{StaticResource PathTextBoxStyle}"
+                                         Text="{Binding ServerPath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                                <TextBlock Margin="0,4,0,0"
+                                           FontSize="11"
+                                           Foreground="{DynamicResource Brush.Error}"
+                                           Text="{Binding PrimaryPathValidationText}"
+                                           Visibility="{Binding ShowPrimaryPathValidation, Converter={StaticResource BoolToVisibility}}" />
+                            </StackPanel>
+                        </Border>
+
+                        <Border Style="{StaticResource PathGroupStyle}" Margin="6,0,0,6">
+                            <StackPanel>
+                                <Grid Margin="0,0,0,6">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0"
+                                               Foreground="{DynamicResource Brush.PrimaryText}"
+                                               FontWeight="SemiBold"
+                                               VerticalAlignment="Center"
+                                               Text="Zweiter Pfad" />
+                                    <CheckBox Grid.Column="1"
+                                              Style="{StaticResource SettingsCheckBoxStyle}"
+                                              Margin="8,0,0,0"
+                                              VerticalAlignment="Center"
+                                              Content="Aktiv"
+                                              IsChecked="{Binding UseSecondaryServerPath, Mode=TwoWay}" />
+                                </Grid>
+                                <TextBox Style="{StaticResource PathTextBoxStyle}"
+                                         IsEnabled="{Binding UseSecondaryServerPath}"
+                                         Text="{Binding SecondaryServerPath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                                <TextBlock Margin="0,4,0,0"
+                                           FontSize="11"
+                                           Foreground="{DynamicResource Brush.Error}"
+                                           Text="{Binding SecondaryPathValidationText}"
+                                           Visibility="{Binding ShowSecondaryPathValidation, Converter={StaticResource BoolToVisibility}}" />
+                            </StackPanel>
+                        </Border>
+
+                        <Border Style="{StaticResource PathGroupStyle}" Margin="0,6,6,0">
+                            <StackPanel>
+                                <Grid Margin="0,0,0,6">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0"
+                                               Foreground="{DynamicResource Brush.PrimaryText}"
+                                               FontWeight="SemiBold"
+                                               VerticalAlignment="Center"
+                                               Text="Dritter Pfad" />
+                                    <CheckBox Grid.Column="1"
+                                              Style="{StaticResource SettingsCheckBoxStyle}"
+                                              Margin="8,0,0,0"
+                                              VerticalAlignment="Center"
+                                              Content="Aktiv"
+                                              IsChecked="{Binding UseTertiaryServerPath, Mode=TwoWay}" />
+                                </Grid>
+                                <TextBox Style="{StaticResource PathTextBoxStyle}"
+                                         IsEnabled="{Binding UseTertiaryServerPath}"
+                                         Text="{Binding TertiaryServerPath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                                <TextBlock Margin="0,4,0,0"
+                                           FontSize="11"
+                                           Foreground="{DynamicResource Brush.Error}"
+                                           Text="{Binding TertiaryPathValidationText}"
+                                           Visibility="{Binding ShowTertiaryPathValidation, Converter={StaticResource BoolToVisibility}}" />
+                            </StackPanel>
+                        </Border>
+
+                        <Border Style="{StaticResource PathGroupStyle}" Margin="6,6,0,0">
+                            <StackPanel>
+                                <TextBlock Foreground="{DynamicResource Brush.PrimaryText}"
+                                           FontWeight="SemiBold"
+                                           Margin="0,0,0,6"
+                                           Text="Stundenplan" />
+                                <TextBox Style="{StaticResource PathTextBoxStyle}"
+                                         Text="{Binding ScheduleRootPath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                                <TextBlock Margin="0,4,0,0"
+                                           FontSize="11"
+                                           Foreground="{DynamicResource Brush.Error}"
+                                           Text="{Binding SchedulePathValidationText}"
+                                           Visibility="{Binding ShowSchedulePathValidation, Converter={StaticResource BoolToVisibility}}" />
+                            </StackPanel>
+                        </Border>
+                    </UniformGrid>
+                </StackPanel>
+            </Border>
+
+            <Grid Grid.Row="2" Margin="0,0,0,10">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="12" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0">
+                    <Border Style="{StaticResource SectionCardStyle}" Margin="0,0,0,10">
+                        <StackPanel>
+                            <TextBlock Style="{StaticResource SectionTitleStyle}" Text="Ansicht" />
+                            <TextBlock Style="{StaticResource SectionSubTitleStyle}" Text="Theme, Dichte und Anzeige" />
+                            <Border Background="{DynamicResource Brush.InputBg}"
+                                    BorderBrush="{DynamicResource Brush.Border}"
+                                    BorderThickness="1"
+                                    CornerRadius="8"
+                                    Padding="2"
+                                    Margin="0,0,0,8">
+                                <UniformGrid Columns="2">
+                                    <RadioButton Content="Dunkel"
+                                                 GroupName="ThemeMode"
+                                                 Style="{StaticResource ThemeOptionStyle}"
+                                                 IsChecked="{Binding IsDarkTheme, Mode=OneWay}"
+                                                 Checked="DarkThemeRadio_OnChecked" />
+                                    <RadioButton Content="Hell"
+                                                 GroupName="ThemeMode"
+                                                 Style="{StaticResource ThemeOptionStyle}"
+                                                 IsChecked="{Binding IsLightTheme, Mode=OneWay}"
+                                                 Checked="LightThemeRadio_OnChecked" />
+                                </UniformGrid>
+                            </Border>
+                            <Border Background="{DynamicResource Brush.InputBg}"
+                                    BorderBrush="{DynamicResource Brush.Border}"
+                                    BorderThickness="1"
+                                    CornerRadius="8"
+                                    Padding="2"
+                                    Margin="0,0,0,8">
+                                <UniformGrid Columns="2">
+                                    <RadioButton Content="Standard"
+                                                 GroupName="DensityMode"
+                                                 Style="{StaticResource ThemeOptionStyle}"
+                                                 IsChecked="{Binding IsStandardDensity, Mode=TwoWay}" />
+                                    <RadioButton Content="Kompakt"
+                                                 GroupName="DensityMode"
+                                                 Style="{StaticResource ThemeOptionStyle}"
+                                                 IsChecked="{Binding IsCompactDensity, Mode=TwoWay}" />
+                                </UniformGrid>
+                            </Border>
+                            <CheckBox Style="{StaticResource SettingsCheckBoxStyle}"
+                                      Content="Kürzel unter dem Namen anzeigen"
+                                      IsChecked="{Binding ShowParticipantInitials, Mode=TwoWay}" />
+                        </StackPanel>
+                    </Border>
+
+                    <Border Style="{StaticResource SectionCardStyle}">
+                        <StackPanel>
+                            <TextBlock Style="{StaticResource SectionTitleStyle}" Text="Eintrag-Vorfüllung" />
+                            <TextBlock Style="{StaticResource SectionSubTitleStyle}" Text="Nur bei leerem Clipboard" />
+                            <CheckBox Style="{StaticResource SettingsCheckBoxStyle}"
+                                      Content="BU- und BI-Einträge mit Datum und Kürzel vorfüllen"
+                                      IsChecked="{Binding AutoPrefillOnEmptyClipboard, Mode=TwoWay}" />
+                            <Grid Margin="0,2,0,0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="10" />
+                                    <ColumnDefinition Width="110" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0"
+                                           VerticalAlignment="Center"
+                                           Foreground="{DynamicResource Brush.SecondaryText}"
+                                           Text="Kürzel" />
+                                <TextBox Grid.Column="2"
+                                         Style="{StaticResource PathTextBoxStyle}"
+                                         IsEnabled="{Binding AutoPrefillOnEmptyClipboard}"
+                                         MaxLength="12"
+                                         Text="{Binding DefaultEntryInitials, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+
+                <Border Grid.Column="2" Style="{StaticResource SectionCardStyle}">
+                    <StackPanel>
+                        <TextBlock Style="{StaticResource SectionTitleStyle}" Text="Aktionen &amp; Word" />
+                        <TextBlock Style="{StaticResource SectionSubTitleStyle}" Text="Buttons, Word und Hilfsfunktionen" />
+                        <UniformGrid Columns="4" Margin="0,0,0,8">
+                            <CheckBox Style="{StaticResource ActionCheckBoxStyle}" Content="Odoo" IsChecked="{Binding ShowBtnOdoo, Mode=TwoWay}" />
+                            <CheckBox Style="{StaticResource ActionCheckBoxStyle}" Content="Ordner" IsChecked="{Binding ShowBtnOrdner, Mode=TwoWay}" />
+                            <CheckBox Style="{StaticResource ActionCheckBoxStyle}" Content="Akte" IsChecked="{Binding ShowBtnAkte, Mode=TwoWay}" />
+                            <CheckBox Style="{StaticResource ActionCheckBoxStyle}" Content="BU" IsChecked="{Binding ShowBtnBu, Mode=TwoWay}" />
+                            <CheckBox Style="{StaticResource ActionCheckBoxStyle}" Content="BE" IsChecked="{Binding ShowBtnBe, Mode=TwoWay}" />
+                            <CheckBox Style="{StaticResource ActionCheckBoxStyle}" Content="BI" IsChecked="{Binding ShowBtnBi, Mode=TwoWay}" />
+                            <CheckBox Style="{StaticResource ActionCheckBoxStyle}" Content="Eintrag BU" IsChecked="{Binding ShowBtnEintrag, Mode=TwoWay}" />
+                            <CheckBox Style="{StaticResource ActionCheckBoxStyle}" Content="Eintrag BI" IsChecked="{Binding ShowBtnEintragBi, Mode=TwoWay}" />
+                        </UniformGrid>
+
+                        <CheckBox Style="{StaticResource SettingsCheckBoxStyle}"
+                                  Margin="0,2,0,6"
+                                  Content="Word maximiert öffnen"
+                                  IsChecked="{Binding OpenWordMaximized, Mode=TwoWay}"
+                                  Checked="WordMaximizedToggle_OnChanged"
+                                  Unchecked="WordMaximizedToggle_OnChanged" />
+                        <TextBlock Margin="0,0,0,3"
+                                   Foreground="{DynamicResource Brush.SecondaryText}"
+                                   FontSize="11"
+                                   Text="Monitor für Word" />
+                        <ComboBox x:Name="WordMonitorComboBox"
+                                  Style="{StaticResource SettingsComboBoxStyle}"
+                                  IsEnabled="{Binding IsWordMonitorSelectionEnabled}"
+                                  Margin="0,0,0,10" />
+
+                        <Button Width="150"
+                                HorizontalAlignment="Left"
+                                Style="{StaticResource SecondaryButtonStyle}"
+                                Content="Log-Ordner öffnen"
+                                Click="OpenLogFolder_OnClick" />
+                    </StackPanel>
+                </Border>
+            </Grid>
+
+            <Border Grid.Row="3"
+                    Style="{StaticResource SectionCardStyle}">
+                <StackPanel>
+                    <TextBlock Style="{StaticResource SectionTitleStyle}" Text="System" />
+                    <TextBlock Style="{StaticResource SectionSubTitleStyle}" Text="Diagnose und Support" />
+                    <CheckBox Style="{StaticResource SettingsCheckBoxStyle}"
+                              Margin="0,0,0,6"
+                              Content="Erweitertes Debug-Logging aktivieren"
+                              IsChecked="{Binding EnableDebugLogging, Mode=TwoWay}" />
+                    <CheckBox Style="{StaticResource SettingsCheckBoxStyle}"
+                              Margin="0"
+                              Content="Word-Lifecycle-Debug aktivieren (Ghost-Dokumente)"
+                              IsChecked="{Binding EnableWordLifecycleLogging, Mode=TwoWay}" />
+                </StackPanel>
+            </Border>
+
+            <Grid Grid.Row="4" Margin="0,10,0,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <TextBlock Grid.Column="0"
+                           VerticalAlignment="Center"
+                           Foreground="{DynamicResource Brush.SecondaryText}"
+                           Text="{Binding DirtyStateText}" />
+
+                <StackPanel Grid.Column="1"
+                            Orientation="Horizontal"
+                            HorizontalAlignment="Right">
+                    <Button Width="116"
+                            Height="34"
+                            Style="{StaticResource SecondaryButtonStyle}"
+                            Content="Abbrechen"
+                            Click="CancelButton_OnClick" />
+                    <Button Width="126"
+                            Height="34"
+                            Margin="8,0,0,0"
+                            Style="{StaticResource PrimaryButtonStyle}"
+                            Content="Speichern"
+                            Click="SaveButton_OnClick" />
+                </StackPanel>
+            </Grid>
+        </Grid>
+    </Border>
+</Window>
+
+
+
+

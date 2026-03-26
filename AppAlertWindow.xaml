@@ -1,0 +1,123 @@
+<Window x:Class="VerlaufsakteApp.AppAlertWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Hinweis"
+        Width="500"
+        MinWidth="460"
+        SizeToContent="Height"
+        MaxHeight="620"
+        WindowStartupLocation="CenterOwner"
+        Background="{DynamicResource Brush.WindowBg}"
+        FontFamily="Segoe UI"
+        FontSize="13"
+        ResizeMode="NoResize">
+    <Window.Resources>
+        <Style x:Key="SectionCardStyle" TargetType="Border">
+            <Setter Property="Background" Value="{DynamicResource Brush.PanelBg}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource Brush.Border}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="10" />
+            <Setter Property="Padding" Value="14" />
+        </Style>
+
+        <Style x:Key="SecondaryButtonStyle" TargetType="Button">
+            <Setter Property="Foreground" Value="{DynamicResource Brush.PrimaryText}" />
+            <Setter Property="Background" Value="{DynamicResource Brush.PanelBg}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource Brush.Border}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Padding" Value="16,8" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Root"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="16"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Root" Property="Background" Value="{DynamicResource Brush.CardHover}" />
+                                <Setter TargetName="Root" Property="BorderBrush" Value="{DynamicResource Brush.InputHoverBorder}" />
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Root" Property="Background" Value="{DynamicResource Brush.CardHover}" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+
+    <Border Margin="12"
+            Background="{DynamicResource Brush.WindowBg}"
+            BorderBrush="{DynamicResource Brush.Border}"
+            BorderThickness="1"
+            CornerRadius="12">
+        <Grid Margin="16">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+            <Grid Grid.Row="0" Margin="0,0,0,12">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="12" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+
+                <Border x:Name="IconCircle"
+                        Width="40"
+                        Height="40"
+                        CornerRadius="20"
+                        VerticalAlignment="Top"
+                        BorderThickness="1">
+                    <TextBlock x:Name="IconGlyph"
+                               HorizontalAlignment="Center"
+                               VerticalAlignment="Center"
+                               FontSize="22"
+                               FontWeight="Bold" />
+                </Border>
+
+                <StackPanel Grid.Column="2">
+                    <TextBlock x:Name="HeadingTextBlock"
+                               Foreground="{DynamicResource Brush.PrimaryText}"
+                               FontWeight="SemiBold"
+                               FontSize="18" />
+                    <TextBlock x:Name="LeadTextBlock"
+                               Margin="0,4,0,0"
+                               Foreground="{DynamicResource Brush.SecondaryText}"
+                               TextWrapping="Wrap" />
+                </StackPanel>
+            </Grid>
+
+            <Border Grid.Row="1"
+                    Style="{StaticResource SectionCardStyle}">
+                <TextBlock x:Name="BodyTextBlock"
+                           Foreground="{DynamicResource Brush.PrimaryText}"
+                           TextWrapping="Wrap" />
+            </Border>
+
+            <DockPanel Grid.Row="2" Margin="0,14,0,0">
+                <TextBlock x:Name="FootnoteTextBlock"
+                           DockPanel.Dock="Left"
+                           VerticalAlignment="Center"
+                           Foreground="{DynamicResource Brush.SubtleText}"
+                           FontSize="11"
+                           Text="" />
+                <Button DockPanel.Dock="Right"
+                        MinWidth="110"
+                        Style="{StaticResource SecondaryButtonStyle}"
+                        IsDefault="True"
+                        Click="OkButton_OnClick"
+                        Content="Verstanden" />
+            </DockPanel>
+        </Grid>
+    </Border>
+</Window>

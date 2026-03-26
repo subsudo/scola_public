@@ -1,0 +1,253 @@
+<Window x:Class="VerlaufsakteApp.AppUpdateWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Update verfügbar"
+        Width="560"
+        MinWidth="520"
+        SizeToContent="Height"
+        MaxHeight="700"
+        WindowStartupLocation="CenterOwner"
+        Background="{DynamicResource Brush.WindowBg}"
+        FontFamily="Segoe UI"
+        FontSize="13"
+        ResizeMode="NoResize">
+    <Window.Resources>
+        <Style x:Key="SectionCardStyle" TargetType="Border">
+            <Setter Property="Background" Value="{DynamicResource Brush.PanelBg}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource Brush.Border}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="10" />
+            <Setter Property="Padding" Value="14" />
+        </Style>
+
+        <Style x:Key="PrimaryButtonStyle" TargetType="Button">
+            <Setter Property="Foreground" Value="White" />
+            <Setter Property="Background" Value="{DynamicResource Brush.Accent}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource Brush.Accent}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Padding" Value="16,8" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Root"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="16"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Root" Property="Background" Value="{DynamicResource Brush.AccentHover}" />
+                                <Setter TargetName="Root" Property="BorderBrush" Value="{DynamicResource Brush.AccentHover}" />
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Root" Property="Background" Value="{DynamicResource Brush.AccentPressed}" />
+                                <Setter TargetName="Root" Property="BorderBrush" Value="{DynamicResource Brush.AccentPressed}" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="Root" Property="Opacity" Value="0.65" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="SecondaryButtonStyle" TargetType="Button">
+            <Setter Property="Foreground" Value="{DynamicResource Brush.PrimaryText}" />
+            <Setter Property="Background" Value="{DynamicResource Brush.PanelBg}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource Brush.Border}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Padding" Value="16,8" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Root"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="16"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Root" Property="Background" Value="{DynamicResource Brush.CardHover}" />
+                                <Setter TargetName="Root" Property="BorderBrush" Value="{DynamicResource Brush.InputHoverBorder}" />
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Root" Property="Background" Value="{DynamicResource Brush.CardHover}" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="Root" Property="Opacity" Value="0.65" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+
+    <Border Margin="12"
+            Background="{DynamicResource Brush.WindowBg}"
+            BorderBrush="{DynamicResource Brush.Border}"
+            BorderThickness="1"
+            CornerRadius="12">
+        <Grid Margin="16">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+            <Grid Grid.Row="0" Margin="0,0,0,14">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="12" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+
+                <Border Width="40"
+                        Height="40"
+                        CornerRadius="20"
+                        Background="#1B2A3A"
+                        BorderBrush="{DynamicResource Brush.Info}"
+                        BorderThickness="1">
+                    <TextBlock HorizontalAlignment="Center"
+                               VerticalAlignment="Center"
+                               FontSize="20"
+                               FontWeight="Bold"
+                               Foreground="{DynamicResource Brush.Info}"
+                               Text="↑" />
+                </Border>
+
+                <StackPanel Grid.Column="2">
+                    <TextBlock Text="Neue Version verfügbar"
+                               Foreground="{DynamicResource Brush.PrimaryText}"
+                               FontWeight="SemiBold"
+                               FontSize="18" />
+                    <TextBlock Margin="0,4,0,0"
+                               Foreground="{DynamicResource Brush.SecondaryText}"
+                               TextWrapping="Wrap"
+                               Text="Scola hat eine neue stabile Version auf GitHub gefunden." />
+                </StackPanel>
+            </Grid>
+
+            <Border Grid.Row="1"
+                    Margin="0,0,0,12"
+                    Style="{StaticResource SectionCardStyle}">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="18" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+
+                    <StackPanel>
+                        <TextBlock Text="Aktuell"
+                                   Foreground="{DynamicResource Brush.SecondaryText}" />
+                        <TextBlock x:Name="CurrentVersionTextBlock"
+                                   Margin="0,4,0,0"
+                                   Foreground="{DynamicResource Brush.PrimaryText}"
+                                   FontWeight="SemiBold"
+                                   FontSize="16" />
+                    </StackPanel>
+
+                    <TextBlock Grid.Column="1"
+                               VerticalAlignment="Center"
+                               HorizontalAlignment="Center"
+                               Foreground="{DynamicResource Brush.SubtleText}"
+                               FontSize="16"
+                               Text="→" />
+
+                    <StackPanel Grid.Column="2">
+                        <TextBlock Text="Neu"
+                                   Foreground="{DynamicResource Brush.SecondaryText}" />
+                        <TextBlock x:Name="NewVersionTextBlock"
+                                   Margin="0,4,0,0"
+                                   Foreground="{DynamicResource Brush.PrimaryText}"
+                                   FontWeight="SemiBold"
+                                   FontSize="16" />
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <Border Grid.Row="2"
+                    Margin="0,0,0,12"
+                    Style="{StaticResource SectionCardStyle}">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+
+                    <TextBlock Text="Hinweise zur neuen Version"
+                               Foreground="{DynamicResource Brush.SecondaryText}" />
+
+                    <ScrollViewer Grid.Row="1"
+                                  Margin="0,8,0,0"
+                                  VerticalScrollBarVisibility="Auto"
+                                  MaxHeight="220">
+                        <TextBlock x:Name="ReleaseNotesTextBlock"
+                                   Foreground="{DynamicResource Brush.PrimaryText}"
+                                   TextWrapping="Wrap" />
+                    </ScrollViewer>
+                </Grid>
+            </Border>
+
+            <Grid Grid.Row="3">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+
+                <StackPanel>
+                    <ProgressBar x:Name="DownloadProgressBar"
+                                 Height="16"
+                                 Minimum="0"
+                                 Maximum="100"
+                                 Visibility="Collapsed" />
+                    <TextBlock x:Name="ProgressStatusTextBlock"
+                               Margin="0,8,0,0"
+                               Foreground="{DynamicResource Brush.SecondaryText}"
+                               Visibility="Collapsed"
+                               Text="Lade Update herunter..." />
+                    <TextBlock x:Name="ErrorTextBlock"
+                               Margin="0,8,0,0"
+                               Foreground="{DynamicResource Brush.Error}"
+                               Visibility="Collapsed"
+                               TextWrapping="Wrap" />
+                </StackPanel>
+
+                <DockPanel Grid.Row="2" Margin="0,16,0,0">
+                    <TextBlock DockPanel.Dock="Left"
+                               VerticalAlignment="Center"
+                               Foreground="{DynamicResource Brush.SubtleText}"
+                               FontSize="11"
+                               Text="Der Download erfolgt direkt aus dem neuesten GitHub Release." />
+                    <StackPanel DockPanel.Dock="Right"
+                                Orientation="Horizontal">
+                        <Button x:Name="LaterButton"
+                                Margin="0,0,8,0"
+                                MinWidth="120"
+                                Style="{StaticResource SecondaryButtonStyle}"
+                                Click="LaterButton_OnClick"
+                                Content="Später" />
+                        <Button x:Name="UpdateButton"
+                                MinWidth="150"
+                                Style="{StaticResource PrimaryButtonStyle}"
+                                IsDefault="True"
+                                Click="UpdateButton_OnClick"
+                                Content="Jetzt aktualisieren" />
+                    </StackPanel>
+                </DockPanel>
+            </Grid>
+        </Grid>
+    </Border>
+</Window>

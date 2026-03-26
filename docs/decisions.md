@@ -1,0 +1,144 @@
+# Decisions
+
+Diese Datei haelt aktuelle, bewusste Projektentscheidungen fest. Sie ist keine vollstaendige Historie, sondern eine kompakte Arbeitsgrundlage fuer Weiterarbeit.
+
+## D1 - Keine grosse Architektur-Migration
+Scola bleibt vorerst eine pragmatische WPF-App ohne MVVM-Framework.
+
+Begruendung:
+- Produkt ist bereits funktional gewachsen
+- Alltagsfunktion ist wichtiger als Architektur-Reinheit
+- grosse Umbauten wuerden viel Risiko in stabile Arbeitsablaeufe bringen
+
+## D2 - Lokale Persistenz in LocalAppData
+Benutzerdaten und Laufzeitkonfiguration liegen nicht neben der EXE, sondern in `%LOCALAPPDATA%\AkteX`.
+
+Begruendung:
+- sauberer fuer portable Auslieferung
+- keine sichtbaren Zusatzdateien neben der EXE noetig
+- benutzerspezifische Trennung bleibt erhalten
+
+## D3 - Word bleibt COM-basiert
+Die Word-Integration bleibt late-bound ueber `dynamic` und wird nicht auf eine voellig andere Strategie umgestellt.
+
+Begruendung:
+- bestehende Funktionalitaet haengt an Word-Bookmarks und Tabellenstrukturen
+- die App ist bewusst auf reale Word-Akten zugeschnitten
+
+## D4 - Odoo nur indirekt und read-only
+Odoo wird in Scola aktuell nur ueber einen in der Akte hinterlegten Link genutzt.
+
+Begruendung:
+- einfache, kontrollierbare Integration
+- keine harte Laufzeitabhaengigkeit zu Odoo
+- Metadaten koennen lokal gecacht werden
+
+## D5 - Kuersel frueh aus dem Dokumentnamen
+Kuersel werden nicht aus dem Ordnernamen oder dem Word-Inhalt abgeleitet, sondern frueh aus dem Dateinamen der Akte.
+
+Begruendung:
+- billig
+- stabil
+- sofort suchbar / nutzbar
+
+## D6 - Batch ist positionsbasiert
+Batch-Zuordnung erfolgt aktuell bewusst nach Position, mit vorgeschalteter Zuordnungsbestaetigung.
+
+Begruendung:
+- einfach
+- nachvollziehbar
+- in der Praxis ausreichend fuer den aktuellen Use Case
+
+## D7 - Wichtige Fehler im App-Stil, nicht nur als Toast
+Kritische oder handlungsrelevante Meldungen werden in gestylten Scola-Fenstern angezeigt.
+
+Begruendung:
+- bessere Sichtbarkeit
+- konsistenteres UX-Verhalten
+- besser geeignet fuer Locks, fehlende Bookmarks oder Batch-Fehler
+
+## D8 - Word-Fensterlogik bewusst vereinfacht
+Die fruehere Idee, freie Word-Fensterpositionen zu merken und wiederherzustellen, wurde verworfen.
+
+Aktuelle Regel:
+- Option `Word maximiert oeffnen`
+- Option `Monitor fuer Word`
+- wenn aktiv: Zielmonitor + maximieren
+- sonst keine aktive Platzierung
+- fehlender Monitor -> Fallback Hauptbildschirm
+
+Begruendung:
+- freie COM-Bounds-Steuerung war in der Praxis zu unzuverlaessig
+- die einfache Regel ist vorhersehbarer
+
+## D9 - Bestehende Alt-Dokumente bleiben erhalten
+Historische Projektdateien wie `HANDOVER.md`, `BUGFIXES.md`, `MUST_DEBUG.md`, `TESTING.md` bleiben bestehen.
+
+Begruendung:
+- dort steckt wertvoller Verlauf und Problemkontext
+- sie sollen nicht geloescht werden
+- kuenftiger Hauptkontext liegt aber primaer in `docs/`
+
+## D10 - Git-/KI-Kontext liegt im Repo
+Projektkontext fuer Weiterarbeit soll nicht primaer in Chats liegen, sondern im Repository.
+
+Begruendung:
+- Arbeit erfolgt auf mehreren Computern
+- neue KI-Instanzen sollen direkt im Repo einsteigen koennen
+- `README.md`, `docs/` und `AGENTS.md` bilden zusammen den aktuellen Einstieg
+
+## D11 - `.gitignore` bleibt strikt lokal-orientiert
+Build-, Publish- und lokale Tooling-Artefakte gehoeren nicht ins Repo.
+
+Begruendung:
+- Repo soll review- und KI-tauglich bleiben
+- produktive Laufzeitdaten liegen ohnehin in `%LOCALAPPDATA%\AkteX`
+- Build-Outputs sollen nicht den eigentlichen Projektkontext ueberdecken
+
+## D12 - Mini-Stundenplan konservativ und read-only
+Der Mini-Stundenplan wird direkt aus einer Wochenplan-`docx` gelesen und lieber leer als falsch angezeigt.
+
+Aktuelle Regel:
+- eigener `ScheduleRootPath` in `AppConfig`
+- Parsing per ZIP/XML, nicht ueber Word
+- nur aktuelle Kalenderwoche
+- strenges Alias-Matching aus den aktuell sichtbaren TN
+- bei Unsicherheit `Unavailable` statt aggressivem Raten
+
+Begruendung:
+- Wochenplan soll schnell im Alltag helfen, aber keine falsche Sicherheit erzeugen
+- Word soll dafuer nicht sichtbar gestartet werden
+- das Feature bleibt additive UI-Hilfe und kein kritischer Kernworkflow
+
+## D13 - Mini-Stundenplan orientiert sich visuell an XHub
+Das Layout des Mini-Stundenplans in Scola orientiert sich bewusst am kompakten XHub-Raster statt an frei variierenden Kachelmustern.
+
+Aktuelle Regel:
+- feste Headerzeile fuer `Mo` bis `Fr`
+- feste Vormittags- und Nachmittagsreihe
+- schmaler Lunch-Seperator
+- Hauptgruppe oben zentriert
+- Lehrer und Raum in einer kleinen Mittelzeile
+- `disp` und `ext` als Status-Badges statt normaler Zellinhalte
+
+Begruendung:
+- das Layout ist in XHub bereits auf Lesbarkeit fuer sehr kleine Zellen optimiert
+- Status-Badges sind klarer als Mischzustaende aus Text und Farben
+- die visuelle Struktur soll stabil bleiben, auch wenn die Tray-Breite leicht iteriert wird
+
+## D14 - Sichtbarer Ladezustand bei Auswertung
+Die Auswertung einer eingefuegten Liste zeigt einen sichtbaren Ladezustand, statt fuer mehrere Sekunden scheinbar gar nichts zu tun.
+
+Aktuelle Regel:
+- `Auswerten` startet die schwere Listenverarbeitung im Hintergrund
+- waehrenddessen zeigt die UI einen kleinen indeterminierten Progress-Indikator und Statustext
+- das Eingabefeld wird waehrend der Verarbeitung nicht weiterbearbeitet
+
+Begruendung:
+- vermeidet Unsicherheit bei laengeren Netzlaufwerk-/Index-Latenzen
+- passt besser zum alltagsorientierten Charakter der App
+- ist bewusst leichtgewichtig und kein grosses Blocking-Overlay
+
+## Annahmen
+- Diese Entscheidungen gelten fuer den aktuellen Arbeitsstand und koennen spaeter bewusst angepasst werden.
+- Noch nicht jede historische Datei ist in sich vollstaendig mit dem neuesten Code synchron; bei Konflikten gilt der Code plus `docs/`-Stand.
