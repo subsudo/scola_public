@@ -28,6 +28,7 @@ Stand dieser Zusammenfassung: 2026-03-17
 - Word-Leak-/Lock-Absicherungen
 - robuste Hauptfenster-Wiederherstellung mit sichtbarem Fallback bei geändertem Monitor-Setup
 - Word-Fenster werden nur noch geöffnet/fokussiert; Größe und Position verwaltet Word selbst
+- Auto-Updater ueber GitHub Releases aus `subsudo/scola_public`
 - Mock-Testsetup
 - Git/GitHub-Grundlage mit `README.md`, `docs/`, `AGENTS.md` und `.gitignore`
 
@@ -52,6 +53,7 @@ Stand dieser Zusammenfassung: 2026-03-17
 - `BUGFIXES.md` und `MUST_DEBUG.md` bleiben wichtig, sind aber problem- bzw. historienorientiert.
 - Der kuenftige Hauptkontext soll in `docs/` gepflegt werden.
 - `AGENTS.md` und `docs/` sollen kuenftig zusammen den Einstiegsrahmen fuer weitere KI-Arbeit bilden.
+- operative Build-/Publish-/Release-Regeln stehen in `docs/release-workflow.md`
 
 ### Technische Risiken
 - hohe Logikdichte in `MainWindow.xaml.cs`

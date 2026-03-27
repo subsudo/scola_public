@@ -152,6 +152,20 @@ Begruendung:
 - minimiert Risiko gegenueber einem groesseren nativen Umbau
 - loest den haeufigen Docking/Undocking-Fall pragmatisch
 
+## D16 - Release-Prozess bleibt bewusst manuell
+Build, Publish und GitHub-Release fuer Scola werden bewusst nicht bei normalen Commits oder Pushes automatisch ausgelost.
+
+Aktuelle Regel:
+- normale Code-Aenderung = keine neue Version, keine Release
+- Test-EXE darf gebaut werden, ohne direkt veroeffentlicht zu werden
+- echte Release nur auf ausdruecklichen Wunsch
+- operative Details stehen in `docs/release-workflow.md`
+
+Begruendung:
+- reduziert versehentliche Veroeffentlichungen
+- passt zum produktnahen, kontrollierten Arbeitsstil des Projekts
+- ist fuer Mensch und KI leichter verlässlich einzuhalten als ein halbautomatischer Mischprozess
+
 ## Annahmen
 - Diese Entscheidungen gelten fuer den aktuellen Arbeitsstand und koennen spaeter bewusst angepasst werden.
 - Noch nicht jede historische Datei ist in sich vollstaendig mit dem neuesten Code synchron; bei Konflikten gilt der Code plus `docs/`-Stand.

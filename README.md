@@ -22,7 +22,8 @@ Zuerst diese Dateien lesen:
 2. `docs/architecture.md`
 3. `docs/status.md`
 4. `docs/decisions.md`
-5. `AGENTS.md`
+5. `docs/release-workflow.md`
+6. `AGENTS.md`
 
 Danach bei Bedarf die aelteren Arbeitsdokumente:
 - `HANDOVER.md`
@@ -35,6 +36,7 @@ Wichtig:
 - Der aktuelle Projektkontext soll kuenftig primaer in `docs/` gepflegt werden.
 - Die bestehenden Handover-/Debug-/Bugfix-Dateien bleiben als Referenz erhalten und werden nicht geloescht.
 - `AGENTS.md` beschreibt den bevorzugten Arbeitsstil fuer weitere KI- oder Teamarbeit.
+- Fuer Build-/Publish-/Release-Arbeit ist `docs/release-workflow.md` verbindlich.
 
 ## Projektstruktur
 - `AGENTS.md`
