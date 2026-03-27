@@ -58,18 +58,18 @@ Begruendung:
 - besser geeignet fuer Locks, fehlende Bookmarks oder Batch-Fehler
 
 ## D8 - Word-Fensterlogik bewusst vereinfacht
-Die fruehere Idee, freie Word-Fensterpositionen zu merken und wiederherzustellen, wurde verworfen.
+Scola platziert Word-Fenster nicht mehr aktiv, sondern oeffnet und fokussiert Dokumente nur noch.
 
 Aktuelle Regel:
-- Option `Word maximiert oeffnen`
-- Option `Monitor fuer Word`
-- wenn aktiv: Zielmonitor + maximieren
-- sonst keine aktive Platzierung
-- fehlender Monitor -> Fallback Hauptbildschirm
+- Scola setzt Sichtbarkeit und Fokus fuer geoeffnete Akten
+- die eigentliche Fensterposition und -groesse bleibt bei Word
+- minimiertes Word darf fuer den Fokus wiederhergestellt werden
+- nicht minimiertes Word wird nicht mehr aktiv verschoben, skaliert oder auf einen Monitor gezwungen
 
 Begruendung:
-- freie COM-Bounds-Steuerung war in der Praxis zu unzuverlaessig
-- die einfache Regel ist vorhersehbarer
+- aktive COM-Fensterplatzierung war in der Praxis zu unzuverlaessig
+- Word merkt sich eigene Fensterzustaende nicht konsistent genug fuer erzwungene Nachsteuerung durch Scola
+- weniger aktive Fenstersteuerung ist alltagsrobuster
 
 ## D9 - Bestehende Alt-Dokumente bleiben erhalten
 Historische Projektdateien wie `HANDOVER.md`, `BUGFIXES.md`, `MUST_DEBUG.md`, `TESTING.md` bleiben bestehen.
@@ -138,6 +138,19 @@ Begruendung:
 - vermeidet Unsicherheit bei laengeren Netzlaufwerk-/Index-Latenzen
 - passt besser zum alltagsorientierten Charakter der App
 - ist bewusst leichtgewichtig und kein grosses Blocking-Overlay
+
+## D15 - Hauptfenster-Position bleibt WPF-basiert mit Sichtbarkeits-Fallback
+Die Wiederherstellung des Scola-Hauptfensters bleibt bei WPF-`RestoreBounds`/gespeicherten Prefs und wird nicht auf einen separaten nativen `WINDOWPLACEMENT`-Stack umgestellt.
+
+Aktuelle Regel:
+- gespeicherte Bounds werden beim Start auf einen gueltigen sichtbaren Bereich geprueft
+- fehlt der gespeicherte Monitor, faellt Scola direkt auf den primaeren Monitor zurueck
+- bei zur Laufzeit geaendertem Monitor-Layout wird das Fenster nur dann zurueckgeholt, wenn es nicht mehr ausreichend sichtbar ist
+
+Begruendung:
+- passt zur bestehenden WPF-Logik ohne zweiten Placement-Stack
+- minimiert Risiko gegenueber einem groesseren nativen Umbau
+- loest den haeufigen Docking/Undocking-Fall pragmatisch
 
 ## Annahmen
 - Diese Entscheidungen gelten fuer den aktuellen Arbeitsstand und koennen spaeter bewusst angepasst werden.

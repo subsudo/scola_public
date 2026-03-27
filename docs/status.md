@@ -26,7 +26,8 @@ Stand dieser Zusammenfassung: 2026-03-17
 - Batch-Fehler-Zusammenfassung im App-Stil
 - Debug-Logging per Toggle
 - Word-Leak-/Lock-Absicherungen
-- Word-Monitor-/Maximieren-Logik nach XHub-Modell
+- robuste Hauptfenster-Wiederherstellung mit sichtbarem Fallback bei geändertem Monitor-Setup
+- Word-Fenster werden nur noch geöffnet/fokussiert; Größe und Position verwaltet Word selbst
 - Mock-Testsetup
 - Git/GitHub-Grundlage mit `README.md`, `docs/`, `AGENTS.md` und `.gitignore`
 
@@ -41,6 +42,7 @@ Stand dieser Zusammenfassung: 2026-03-17
 - echte Produktionslogs fuer Parser-/Matching-Ausreisser
 - echte Produktionslogs fuer Word-Leerdokumente / Nebenwirkungen
 - Verhalten von Word bei mehreren offenen Instanzen/Fenstern
+- Hauptfenster-Restore nach Docking/Undocking im Alltag weiter beobachten
 - Odoo-Metadaten-Warmup nur unter realer Netzlast weiter beobachten
 - Mini-Stundenplan-Matching mit echten Wochenplaenen weiter beobachten, vor allem bei haeufigen Vornamen-Clustern und Grenzfaellen wie `NameA`/`NameB`
 - Mini-Stundenplan-Feintuning bleibt produktnah: Breite, Linien und Badge-Proportionen wurden zuletzt mehrfach iteriert und sollten nur vorsichtig weiter angepasst werden

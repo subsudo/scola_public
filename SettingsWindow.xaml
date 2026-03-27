@@ -475,16 +475,23 @@
 
                         <CheckBox Style="{StaticResource SettingsCheckBoxStyle}"
                                   Margin="0,2,0,6"
+                                  Visibility="Collapsed"
                                   Content="Word maximiert öffnen"
                                   IsChecked="{Binding OpenWordMaximized, Mode=TwoWay}"
                                   Checked="WordMaximizedToggle_OnChanged"
                                   Unchecked="WordMaximizedToggle_OnChanged" />
+                        <TextBlock Margin="0,2,0,6"
+                                   Foreground="{DynamicResource Brush.SecondaryText}"
+                                   FontSize="11"
+                                   Text="Word verwaltet Fenstergröße und -position selbst." />
                         <TextBlock Margin="0,0,0,3"
+                                   Visibility="Collapsed"
                                    Foreground="{DynamicResource Brush.SecondaryText}"
                                    FontSize="11"
                                    Text="Monitor für Word" />
                         <ComboBox x:Name="WordMonitorComboBox"
                                   Style="{StaticResource SettingsComboBoxStyle}"
+                                  Visibility="Collapsed"
                                   IsEnabled="{Binding IsWordMonitorSelectionEnabled}"
                                   Margin="0,0,0,10" />
 

@@ -5,14 +5,12 @@ using System.Runtime.InteropServices;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Windows;
-using Forms = System.Windows.Forms;
 using VerlaufsakteApp.Models;
 
 namespace VerlaufsakteApp.Services;
 
 public class WordService
 {
-    private const string PrimaryMonitorId = "__PRIMARY__";
     private const string DocumentLockedMessage = "Akte ist bereits offen oder gesperrt (evtl. durch anderen Benutzer). Bitte später erneut versuchen.";
     private const int WordForegroundRetryDelayMs = 80;
     private const int ClipboardReadRetryCount = 3;
@@ -2343,7 +2341,6 @@ public class WordService
 
         app.Visible = true;
         LogWordLifecycle(context, "EnsureWordUiState: Visible=true gesetzt.");
-        TryApplyPreferredWindowPlacement(app);
         TryBringWordToForeground(app);
     }
 
@@ -2581,103 +2578,6 @@ public class WordService
         }
     }
 
-    private static void TryApplyPreferredWindowPlacement(dynamic app)
-    {
-        try
-        {
-            var prefs = App.UserPrefs;
-            if (prefs is null || !prefs.OpenWordMaximized)
-            {
-                return;
-            }
-
-            dynamic targetWindow = TryGetWordTargetWindow(app);
-            if (targetWindow is null)
-            {
-                return;
-            }
-
-            var screen = ResolvePreferredScreen(prefs.PreferredWordMonitorId);
-            var workingArea = screen.WorkingArea;
-
-            TrySetWordWindowState(targetWindow, WordWindowStateNormal);
-            targetWindow.Left = workingArea.Left;
-            targetWindow.Top = workingArea.Top;
-            targetWindow.Width = workingArea.Width;
-            targetWindow.Height = workingArea.Height;
-            TrySetWordWindowState(targetWindow, WordWindowStateMaximized);
-            AppLogger.Debug($"Word: Platzierung angewendet. Monitor='{screen.DeviceName}', Left={workingArea.Left}, Top={workingArea.Top}, Width={workingArea.Width}, Height={workingArea.Height}, Maximized=True.");
-        }
-        catch (Exception ex)
-        {
-            AppLogger.Warn($"Word: Gewuenschte Monitor-/Maximierungsplatzierung konnte nicht angewendet werden: {ex.Message}");
-        }
-    }
-
-    private static Forms.Screen ResolvePreferredScreen(string? monitorId)
-    {
-        var screens = Forms.Screen.AllScreens;
-        if (screens.Length == 0)
-        {
-            throw new InvalidOperationException("Kein Bildschirm verfügbar.");
-        }
-
-        if (string.IsNullOrWhiteSpace(monitorId) ||
-            string.Equals(monitorId, PrimaryMonitorId, StringComparison.OrdinalIgnoreCase))
-        {
-            return Forms.Screen.PrimaryScreen ?? screens[0];
-        }
-
-        foreach (var screen in screens)
-        {
-            if (string.Equals(screen.DeviceName, monitorId, StringComparison.OrdinalIgnoreCase))
-            {
-                return screen;
-            }
-        }
-
-        return Forms.Screen.PrimaryScreen ?? screens[0];
-    }
-
-    private static dynamic? TryGetWordTargetWindow(dynamic app)
-    {
-        try
-        {
-            var activeWindow = app.ActiveWindow;
-            if (activeWindow is not null)
-            {
-                return activeWindow;
-            }
-        }
-        catch
-        {
-        }
-
-        try
-        {
-            return app;
-        }
-        catch
-        {
-            return null;
-        }
-    }
-
-    private static void TrySetWordWindowState(dynamic targetWindow, int state)
-    {
-        try
-        {
-            if (targetWindow is not null)
-            {
-                targetWindow.WindowState = state;
-            }
-        }
-        catch (Exception ex)
-        {
-            AppLogger.Warn($"Word: WindowState konnte nicht gesetzt werden: {ex.Message}");
-        }
-    }
-
     private static void TryBringWordToForeground(dynamic app)
     {
         var hwnd = TryGetWordMainWindowHandle(app);
@@ -2688,10 +2588,22 @@ public class WordService
 
         try
         {
-            NativeMethods.ShowWindowAsync(hwnd, NativeMethods.SW_RESTORE);
+            if (NativeMethods.IsIconic(hwnd))
+            {
+                NativeMethods.ShowWindowAsync(hwnd, NativeMethods.SW_RESTORE);
+            }
+
             NativeMethods.SetForegroundWindow(hwnd);
             Thread.Sleep(WordForegroundRetryDelayMs);
-            NativeMethods.ShowWindowAsync(hwnd, NativeMethods.SW_SHOW);
+            if (NativeMethods.IsIconic(hwnd))
+            {
+                NativeMethods.ShowWindowAsync(hwnd, NativeMethods.SW_RESTORE);
+            }
+            else
+            {
+                NativeMethods.ShowWindowAsync(hwnd, NativeMethods.SW_SHOW);
+            }
+
             NativeMethods.SetForegroundWindow(hwnd);
         }
         catch (Exception ex)
@@ -3429,9 +3341,6 @@ public class WordService
         return message;
     }
 
-    private const int WordWindowStateNormal = 0;
-    private const int WordWindowStateMaximized = 1;
-
     private static class NativeMethods
     {
         public const int SW_SHOW = 5;
@@ -3447,6 +3356,10 @@ public class WordService
         [DllImport("user32.dll", SetLastError = true)]
         [return: MarshalAs(UnmanagedType.Bool)]
         public static extern bool SetForegroundWindow(IntPtr hWnd);
+
+        [DllImport("user32.dll")]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        public static extern bool IsIconic(IntPtr hWnd);
 
         [DllImport("user32.dll", SetLastError = true)]
         public static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint lpdwProcessId);
