@@ -64,6 +64,7 @@ public partial class MainWindow : Window
     private const double StatusBarHeight = 24;
     private const double OuterBorderHeight = 2;
     private const double MinResultsWindowHeightAllowance = 120;
+    private static readonly TimeSpan WeeklyScheduleRetryInterval = TimeSpan.FromMinutes(3);
     private static readonly string ApplicationVersionText = BuildApplicationVersionText();
 
     private readonly AppConfig _config;
@@ -82,6 +83,7 @@ public partial class MainWindow : Window
     private bool _isBatchCollapsed = true;
     private bool _isBiTodoCollapsed = true;
     private readonly DispatcherTimer _layoutDebounceTimer;
+    private readonly DispatcherTimer _weeklyScheduleRetryTimer;
     private CancellationTokenSource? _batchCancellation;
     private bool _isBatchRunning;
     private bool _isBiTodoRunning;
@@ -97,6 +99,7 @@ public partial class MainWindow : Window
     private DisplayDensityProfile _displayDensityProfile = CreateDisplayDensityProfile(DisplayDensityMode.Standard);
     private bool _startupUpdateCheckStarted;
     private bool _isUpdateShutdownRequested;
+    private bool _isWeeklyScheduleRetryRunning;
 
     public static readonly DependencyProperty ShowParticipantInitialsProperty = RegisterLayoutProperty(nameof(ShowParticipantInitials), true);
     public static readonly DependencyProperty ShowBtnOdooProperty = RegisterLayoutProperty(nameof(ShowBtnOdoo), false);
@@ -209,6 +212,11 @@ public partial class MainWindow : Window
             _layoutDebounceTimer.Stop();
             UpdateLayoutMode();
         };
+        _weeklyScheduleRetryTimer = new DispatcherTimer
+        {
+            Interval = WeeklyScheduleRetryInterval
+        };
+        _weeklyScheduleRetryTimer.Tick += WeeklyScheduleRetryTimer_OnTick;
 
         Participants = new ObservableCollection<Participant>();
         BatchResults = new ObservableCollection<BatchResult>();
@@ -349,6 +357,7 @@ public partial class MainWindow : Window
         }
 
         SystemEvents.DisplaySettingsChanged -= SystemEvents_OnDisplaySettingsChanged;
+        _weeklyScheduleRetryTimer.Stop();
         SaveWindowBoundsToPrefs();
         _wordStaHost.Dispose();
     }
@@ -370,6 +379,93 @@ public partial class MainWindow : Window
         catch (Exception ex)
         {
             AppLogger.Warn($"Updater: Startup-Check fehlgeschlagen: {ex.Message}");
+        }
+
+        UpdateWeeklyScheduleRetryTimerState();
+        await EnsureCurrentWeekScheduleLoadedAsync("Startup");
+    }
+
+    private async void WeeklyScheduleRetryTimer_OnTick(object? sender, EventArgs e)
+    {
+        await EnsureCurrentWeekScheduleLoadedAsync("Timer");
+    }
+
+    private void UpdateWeeklyScheduleRetryTimerState()
+    {
+        if (!IsLoaded || _isUpdateShutdownRequested)
+        {
+            _weeklyScheduleRetryTimer.Stop();
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(_config.ScheduleRootPath))
+        {
+            if (_weeklyScheduleRetryTimer.IsEnabled)
+            {
+                _weeklyScheduleRetryTimer.Stop();
+                AppLogger.Debug("MiniScheduleRetry: Timer gestoppt, kein Stundenplanpfad konfiguriert.");
+            }
+
+            return;
+        }
+
+        if (!_weeklyScheduleRetryTimer.IsEnabled)
+        {
+            _weeklyScheduleRetryTimer.Start();
+            AppLogger.Debug($"MiniScheduleRetry: Timer gestartet. Intervall='{WeeklyScheduleRetryInterval}'.");
+        }
+    }
+
+    private async Task EnsureCurrentWeekScheduleLoadedAsync(string trigger)
+    {
+        if (!IsLoaded || _isUpdateShutdownRequested || _isWeeklyScheduleRetryRunning)
+        {
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(_config.ScheduleRootPath))
+        {
+            UpdateWeeklyScheduleRetryTimerState();
+            return;
+        }
+
+        if (Participants.Any(participant => participant.IsMiniScheduleLoading))
+        {
+            AppLogger.Debug($"MiniScheduleRetry: Uebersprungen ({trigger}), anderer Stundenplan-Ladevorgang aktiv.");
+            return;
+        }
+
+        var statusBefore = _weeklyScheduleService.GetCurrentWeekLoadStatus(_config.ScheduleRootPath);
+        if (statusBefore.IsCurrentWeekSuccessfullyLoaded)
+        {
+            UpdateWeeklyScheduleRetryTimerState();
+            return;
+        }
+
+        _isWeeklyScheduleRetryRunning = true;
+
+        try
+        {
+            AppLogger.Debug($"MiniScheduleRetry: Versuch gestartet ({trigger}). Path='{statusBefore.ResolvedDocumentPath ?? string.Empty}', LastFailureUtc='{statusBefore.LastFailureUtc?.ToString("O") ?? string.Empty}'.");
+
+            var statusAfter = await Task.Run(() => _weeklyScheduleService.TryWarmCurrentWeekDocument(_config.ScheduleRootPath));
+            if (statusAfter.IsCurrentWeekSuccessfullyLoaded)
+            {
+                AppLogger.Info($"MiniScheduleRetry: Aktuelle Wochenplanung erfolgreich geladen. Path='{statusAfter.ResolvedDocumentPath ?? string.Empty}'.");
+            }
+            else
+            {
+                AppLogger.Debug($"MiniScheduleRetry: Noch kein erfolgreicher Lesezugriff ({trigger}). Path='{statusAfter.ResolvedDocumentPath ?? string.Empty}', LastFailureUtc='{statusAfter.LastFailureUtc?.ToString("O") ?? string.Empty}'.");
+            }
+        }
+        catch (Exception ex)
+        {
+            AppLogger.Warn($"MiniScheduleRetry: Fehler beim Hintergrund-Check ({trigger}): {ex.Message}");
+        }
+        finally
+        {
+            _isWeeklyScheduleRetryRunning = false;
+            UpdateWeeklyScheduleRetryTimerState();
         }
     }
 
@@ -1277,6 +1373,11 @@ public partial class MainWindow : Window
         SaveSettingsToDisk();
         _matcher = CreateMatcher();
         ResetMiniScheduleForAllParticipants(immediate: true);
+        UpdateWeeklyScheduleRetryTimerState();
+        if (IsLoaded)
+        {
+            _ = EnsureCurrentWeekScheduleLoadedAsync("SettingsChanged");
+        }
 
         ShowParticipantInitials = result.ShowParticipantInitials;
         ShowBtnOdoo = result.ShowBtnOdoo;
@@ -1524,6 +1625,7 @@ public partial class MainWindow : Window
         finally
         {
             participant.IsMiniScheduleLoading = false;
+            UpdateWeeklyScheduleRetryTimerState();
         }
     }
 

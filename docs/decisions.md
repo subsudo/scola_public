@@ -166,6 +166,32 @@ Begruendung:
 - passt zum produktnahen, kontrollierten Arbeitsstil des Projekts
 - ist fuer Mensch und KI leichter verlässlich einzuhalten als ein halbautomatischer Mischprozess
 
+## D17 - Wochenplan-Fehlversuche gelten nicht als gueltiger leerer Stand
+Temporäre Lesefehler beim Mini-Stundenplan, zum Beispiel gesperrte `KW_xx.docx` am Wochenwechsel, werden nicht als leerer Wochenplan persistiert.
+
+Aktuelle Regel:
+- nur erfolgreich gelesene Wochenplan-Dokumente werden im JSON-Cache gespeichert
+- ein Fehlversuch darf einen bestehenden guten Cache nicht mit einem leeren Dokument ueberschreiben
+- solange die aktuelle Woche noch nicht einmal erfolgreich gelesen wurde, versucht Scola sie im Hintergrund periodisch erneut
+
+Begruendung:
+- Wochenplaene sind montags oft kurz gesperrt und spaeter normal lesbar
+- ein einmaliger Lock soll nicht fuer Stunden oder Tage zu `Kein Stundenplan` fuehren
+- das Feature bleibt konservativ, aber robuster im realen Alltag
+
+## D18 - Odoo-Header-Fehlversuche gelten nicht als leerer Link
+Temporäre Lesefehler beim Odoo-Link aus dem `docx`-Header werden nicht als leerer Odoo-Zustand persistiert.
+
+Aktuelle Regel:
+- nur erfolgreich gelesene Header-Metadaten werden im persistenten Header-Cache gespeichert
+- ein Lesefehler darf keinen bestehenden guten Odoo-Link mit `leer` überschreiben
+- die Cache-Version wurde bewusst erhöht, damit alte potenziell falsch leere Einträge neu aufgebaut werden
+
+Begruendung:
+- der Odoo-Link ist für eine bestehende Akte fachlich meist stabil
+- temporäre Paket-/Netz-/Lock-Fehler sollen nicht zu dauerhaft „fehlenden“ Odoo-Buttons führen
+- ein kompletter Cache-Neuaufbau ist hier der pragmatischste Weg, um Altlasten zu bereinigen
+
 ## Annahmen
 - Diese Entscheidungen gelten fuer den aktuellen Arbeitsstand und koennen spaeter bewusst angepasst werden.
 - Noch nicht jede historische Datei ist in sich vollstaendig mit dem neuesten Code synchron; bei Konflikten gilt der Code plus `docs/`-Stand.

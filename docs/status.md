@@ -9,6 +9,7 @@ Stand dieser Zusammenfassung: 2026-03-17
 - Ordner-Matching ueber 1-3 Pfade
 - Ordner / Akte / BU / BI / BE / Eintrag BU / Eintrag BI / Odoo als Aktionen
 - Odoo-Link aus `docx`-Header mit Cache
+- Odoo-Headercache speichert nur erfolgreiche Leseergebnisse; die Cache-Version wurde angehoben, damit potenziell falsch leere Alt-Einträge neu aufgebaut werden
 - Kuersel aus Dateinamen, Anzeige unter dem Namen
 - Kuersel koennen in Darstellung/Buttons konfiguriert werden und sind in die Match-/Suchbasis eingearbeitet
 - Mini-Stundenplan-Tray pro TN-Karte mit Toggle ueber Name oder Karte
@@ -16,6 +17,7 @@ Stand dieser Zusammenfassung: 2026-03-17
 - konservatives Wochenplan-Parsen direkt aus `docx` ohne Word
 - Wochenplan-Matcher jetzt deutlich naeher an XHub: Alias-/Ambiguitaetslogik, Paragraph-/Run-Parsen und interner Cache/Diagnostik-Unterbau
 - Mini-Stundenplan-Layout jetzt bewusst naeher an XHub: kompaktes Raster mit Headerzeile, Lunch-Seperator und Status-Badges fuer `disp` / `ext`
+- Stundenplan-Fehlversuche werden nicht mehr als leerer Wochenplan gecacht; die aktuelle KW wird bei temporaeren Locks im Hintergrund erneut versucht
 - `Auswerten` zeigt waehrend laengerer Listenverarbeitung einen sichtbaren Ladezustand mit kleinem Progress-Indikator
 - Batch-Eintrag mit positionsbasierter Zuordnung und Mapping-Bestaetigung
 - `BI: To-dos` als eigener Sammellauf fuer angehakte TN
@@ -46,6 +48,7 @@ Stand dieser Zusammenfassung: 2026-03-17
 - Hauptfenster-Restore nach Docking/Undocking im Alltag weiter beobachten
 - Odoo-Metadaten-Warmup nur unter realer Netzlast weiter beobachten
 - Mini-Stundenplan-Matching mit echten Wochenplaenen weiter beobachten, vor allem bei haeufigen Vornamen-Clustern und Grenzfaellen wie `NameA`/`NameB`
+- Wochenwechsel- und Lock-Verhalten des Mini-Stundenplans im Alltag weiter beobachten, vor allem Montag/Dienstag bei frisch geoeffneten `KW_xx.docx`
 - Mini-Stundenplan-Feintuning bleibt produktnah: Breite, Linien und Badge-Proportionen wurden zuletzt mehrfach iteriert und sollten nur vorsichtig weiter angepasst werden
 
 ### Dokumentationsschuld

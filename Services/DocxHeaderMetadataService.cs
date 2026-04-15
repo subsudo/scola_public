@@ -8,7 +8,7 @@ namespace VerlaufsakteApp.Services;
 
 public sealed class DocxHeaderMetadataService
 {
-    private const int CacheVersion = 1;
+    private const int CacheVersion = 2;
     private static readonly TimeSpan MissingDocumentRetention = TimeSpan.FromDays(30);
     private static readonly Regex PlaceholderHeaderRegex = new(@"Nachname|Vorname|Name\s+Vorname|\bXX\b", RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
@@ -45,19 +45,17 @@ public sealed class DocxHeaderMetadataService
             }
         }
 
-        HeaderMetadata metadata;
         try
         {
-            metadata = ReadFromPackage(documentPath);
+            var metadata = ReadFromPackage(documentPath);
+            UpdateCache(fileInfo, metadata);
+            return metadata;
         }
         catch (Exception ex)
         {
             AppLogger.Warn($"Header-Metadaten konnten nicht gelesen werden '{documentPath}': {ex.Message}");
-            metadata = HeaderMetadata.Empty;
+            return HeaderMetadata.Empty;
         }
-
-        UpdateCache(fileInfo, metadata);
-        return metadata;
     }
 
     private Dictionary<string, CacheEntry> LoadCache()

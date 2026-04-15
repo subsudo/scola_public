@@ -21,6 +21,9 @@ public sealed class WeeklyScheduleService
     private readonly string _cachePath;
     private readonly string _cacheBackupPath;
     private readonly Dictionary<string, WeeklyScheduleCacheEntryInternal> _cache;
+    private string? _currentWeekResolvedPath;
+    private DateTime? _lastCurrentWeekFailureUtc;
+    private bool _isCurrentWeekSuccessfullyLoaded;
 
     public WeeklyScheduleService(string cachePath, string cacheBackupPath)
     {
@@ -43,7 +46,9 @@ public sealed class WeeklyScheduleService
             return CreateUnavailableSummary("Kein Stundenplan");
         }
 
-        var document = ReadDocument(resolvedSchedulePath);
+        var readResult = ReadDocument(resolvedSchedulePath);
+        UpdateCurrentWeekLoadState(resolvedSchedulePath, readResult.Success, readResult.Success ? null : DateTime.UtcNow);
+        var document = readResult.Document;
         if (document.Slots.Count == 0)
         {
             return CreateUnavailableSummary("Kein Stundenplan");
@@ -51,6 +56,35 @@ public sealed class WeeklyScheduleService
 
         var matcher = new ParticipantAliasMatcher(participantRefs);
         return BuildParticipantScheduleSummary(document, participantRef, matcher, out _, out _);
+    }
+
+    public WeeklyScheduleCurrentWeekLoadStatus GetCurrentWeekLoadStatus(string schedulePath)
+    {
+        var resolvedSchedulePath = ResolveScheduleDocumentPath(schedulePath);
+
+        lock (_syncRoot)
+        {
+            SyncCurrentWeekResolvedPathUnsafe(resolvedSchedulePath);
+            return CreateCurrentWeekLoadStatusUnsafe();
+        }
+    }
+
+    public WeeklyScheduleCurrentWeekLoadStatus TryWarmCurrentWeekDocument(string schedulePath)
+    {
+        var resolvedSchedulePath = ResolveScheduleDocumentPath(schedulePath);
+        if (string.IsNullOrWhiteSpace(resolvedSchedulePath))
+        {
+            UpdateCurrentWeekLoadState(null, wasSuccessful: false, failureUtc: null);
+            return GetCurrentWeekLoadStatus(schedulePath);
+        }
+
+        var readResult = ReadDocument(resolvedSchedulePath);
+        UpdateCurrentWeekLoadState(
+            resolvedSchedulePath,
+            readResult.Success,
+            readResult.Success ? null : DateTime.UtcNow);
+
+        return GetCurrentWeekLoadStatus(schedulePath);
     }
 
 
@@ -78,7 +112,7 @@ public sealed class WeeklyScheduleService
                 return;
             }
 
-            var document = ReadDocument(resolvedSchedulePath);
+            var document = ReadDocument(resolvedSchedulePath).Document;
             var matcher = new ParticipantAliasMatcher(participantRefs);
             var diagnostics = new WeeklyScheduleDiagnosticsDocument
             {
@@ -457,12 +491,12 @@ public sealed class WeeklyScheduleService
 
         return new WeekFileCandidate(path, year, week);
     }
-    private WeeklyScheduleDocument ReadDocument(string schedulePath)
+    private WeeklyScheduleReadResult ReadDocument(string schedulePath)
     {
         var fileInfo = new FileInfo(schedulePath);
         if (!fileInfo.Exists)
         {
-            return new WeeklyScheduleDocument();
+            return new WeeklyScheduleReadResult(new WeeklyScheduleDocument(), false);
         }
 
         lock (_syncRoot)
@@ -471,23 +505,21 @@ public sealed class WeeklyScheduleService
                 cached.LastWriteTimeUtc == fileInfo.LastWriteTimeUtc &&
                 cached.Length == fileInfo.Length)
             {
-                return cached.Document;
+                return new WeeklyScheduleReadResult(cached.Document, true);
             }
         }
 
-        WeeklyScheduleDocument document;
         try
         {
-            document = ParseScheduleDocument(fileInfo.FullName);
+            var document = ParseScheduleDocument(fileInfo.FullName);
+            UpdateCache(fileInfo, document);
+            return new WeeklyScheduleReadResult(document, true);
         }
         catch (Exception ex)
         {
             AppLogger.Warn($"Stundenplan konnte nicht gelesen werden '{schedulePath}': {ex.Message}");
-            document = new WeeklyScheduleDocument();
+            return new WeeklyScheduleReadResult(new WeeklyScheduleDocument(), false);
         }
-
-        UpdateCache(fileInfo, document);
-        return document;
     }
 
     private Dictionary<string, WeeklyScheduleCacheEntryInternal> LoadCache()
@@ -513,6 +545,54 @@ public sealed class WeeklyScheduleService
             _cache[fileInfo.FullName] = new WeeklyScheduleCacheEntryInternal(fileInfo.LastWriteTimeUtc, fileInfo.Length, document);
             PersistCacheUnsafe();
         }
+    }
+
+    private void UpdateCurrentWeekLoadState(string? resolvedSchedulePath, bool wasSuccessful, DateTime? failureUtc)
+    {
+        lock (_syncRoot)
+        {
+            SyncCurrentWeekResolvedPathUnsafe(resolvedSchedulePath);
+            if (string.IsNullOrWhiteSpace(resolvedSchedulePath))
+            {
+                _isCurrentWeekSuccessfullyLoaded = false;
+                _lastCurrentWeekFailureUtc = null;
+                return;
+            }
+
+            if (wasSuccessful)
+            {
+                _isCurrentWeekSuccessfullyLoaded = true;
+                _lastCurrentWeekFailureUtc = null;
+                return;
+            }
+
+            if (_isCurrentWeekSuccessfullyLoaded)
+            {
+                return;
+            }
+
+            _lastCurrentWeekFailureUtc = failureUtc;
+        }
+    }
+
+    private void SyncCurrentWeekResolvedPathUnsafe(string? resolvedSchedulePath)
+    {
+        if (string.Equals(_currentWeekResolvedPath, resolvedSchedulePath, StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        _currentWeekResolvedPath = resolvedSchedulePath;
+        _isCurrentWeekSuccessfullyLoaded = false;
+        _lastCurrentWeekFailureUtc = null;
+    }
+
+    private WeeklyScheduleCurrentWeekLoadStatus CreateCurrentWeekLoadStatusUnsafe()
+    {
+        return new WeeklyScheduleCurrentWeekLoadStatus(
+            _currentWeekResolvedPath,
+            _lastCurrentWeekFailureUtc,
+            _isCurrentWeekSuccessfullyLoaded);
     }
 
     private void PersistCacheUnsafe()
@@ -1007,6 +1087,7 @@ public sealed class WeeklyScheduleService
 
     private sealed record WeeklyScheduleCacheEntryInternal(DateTime LastWriteTimeUtc, long Length, WeeklyScheduleDocument Document);
     private sealed record WeekFileCandidate(string Path, int Year, int Week);
+    private sealed record WeeklyScheduleReadResult(WeeklyScheduleDocument Document, bool Success);
 
     private sealed class ParticipantAliasMatcher
     {
@@ -1361,6 +1442,11 @@ public sealed class WeeklyScheduleService
     private sealed record LineCandidate(string Alias, int StartIndex, int Length, List<string> ParticipantKeys);
     private sealed record LineAnalysis(string ResolutionState, List<ResolvedLineMatch> ResolvedMatches, List<LineCandidate> Candidates);
 }
+
+public sealed record WeeklyScheduleCurrentWeekLoadStatus(
+    string? ResolvedDocumentPath,
+    DateTime? LastFailureUtc,
+    bool IsCurrentWeekSuccessfullyLoaded);
 
 internal sealed class ScheduleParticipantRef
 {
