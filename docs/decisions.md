@@ -139,18 +139,20 @@ Begruendung:
 - passt besser zum alltagsorientierten Charakter der App
 - ist bewusst leichtgewichtig und kein grosses Blocking-Overlay
 
-## D15 - Hauptfenster-Position bleibt WPF-basiert mit Sichtbarkeits-Fallback
-Die Wiederherstellung des Scola-Hauptfensters bleibt bei WPF-`RestoreBounds`/gespeicherten Prefs und wird nicht auf einen separaten nativen `WINDOWPLACEMENT`-Stack umgestellt.
+## D15 - Hauptfenster merkt keine exakte Position mehr
+Scola speichert fuer das Hauptfenster keine exakten `Left`/`Top`-Koordinaten mehr, sondern nur noch Groesse und Maximiert-Zustand.
 
 Aktuelle Regel:
-- gespeicherte Bounds werden beim Start auf einen gueltigen sichtbaren Bereich geprueft
-- fehlt der gespeicherte Monitor, faellt Scola direkt auf den primaeren Monitor zurueck
-- bei zur Laufzeit geaendertem Monitor-Layout wird das Fenster nur dann zurueckgeholt, wenn es nicht mehr ausreichend sichtbar ist
+- beim Start wird das Hauptfenster immer zentriert auf dem primaeren Monitor geoeffnet
+- `WindowWidth`, `WindowHeight` und `WindowWasMaximized` bleiben erhalten
+- exakte Fensterposition und gespeicherte Monitor-DeviceNames werden nicht mehr persistiert
+- `AutoFit` orientiert sich am Monitor des aktuell laufenden Fensters, nicht an alten Prefs
+- auf `DisplaySettingsChanged` wird nicht mehr aktiv reagiert
 
 Begruendung:
-- passt zur bestehenden WPF-Logik ohne zweiten Placement-Stack
-- minimiert Risiko gegenueber einem groesseren nativen Umbau
-- loest den haeufigen Docking/Undocking-Fall pragmatisch
+- eliminiert die Off-Screen-Bugklasse strukturell statt heuristisch
+- vermeidet Probleme mit wechselnden Windows-DeviceNames und Monitor-/DPI-Kombinationen
+- ist fuer den Alltag vorhersehbarer als eine komplexe Restore-Heuristik
 
 ## D16 - Release-Prozess bleibt bewusst manuell
 Build, Publish und GitHub-Release fuer Scola werden bewusst nicht bei normalen Commits oder Pushes automatisch ausgelost.

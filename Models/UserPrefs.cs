@@ -17,11 +17,8 @@ public class UserPrefs
     public string DefaultEntryInitials { get; set; } = string.Empty;
     public bool EnableDebugLogging { get; set; }
     public bool EnableWordLifecycleLogging { get; set; }
-    public double? WindowLeft { get; set; }
-    public double? WindowTop { get; set; }
     public double? WindowWidth { get; set; }
     public double? WindowHeight { get; set; }
-    public string WindowMonitorDeviceName { get; set; } = string.Empty;
     public bool WindowWasMaximized { get; set; }
     public bool OpenWordMaximized { get; set; }
     public string PreferredWordMonitorId { get; set; } = "__PRIMARY__";

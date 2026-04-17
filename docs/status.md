@@ -29,7 +29,7 @@ Stand dieser Zusammenfassung: 2026-03-17
 - Batch-Fehler-Zusammenfassung im App-Stil
 - Debug-Logging per Toggle
 - Word-Leak-/Lock-Absicherungen
-- robuste Hauptfenster-Wiederherstellung mit sichtbarem Fallback bei geändertem Monitor-Setup
+- Hauptfenster startet deterministisch zentriert auf dem primaeren Monitor; nur Groesse und Maximiert-Zustand werden noch gemerkt
 - Word-Fenster werden nur noch geöffnet/fokussiert; Größe und Position verwaltet Word selbst
 - Auto-Updater ueber GitHub Releases aus `subsudo/scola_public`
 - Mock-Testsetup
@@ -47,7 +47,7 @@ Stand dieser Zusammenfassung: 2026-03-17
 - echte Produktionslogs fuer Word-Leerdokumente / Nebenwirkungen
 - Ghost-Word-Diagnostik fuer leere `DokumentN`-Fenster bleibt produktiv relevant, jetzt mit expliziter Zombie-Attach-Abwehr und konservativer Blankodokument-Bereinigung
 - Verhalten von Word bei mehreren offenen Instanzen/Fenstern
-- Hauptfenster-Restore nach Docking/Undocking im Alltag weiter beobachten
+- vereinfachtes Hauptfenster-Startverhalten auf verschiedenen Monitor-Setups im Alltag weiter beobachten
 - Odoo-Metadaten-Warmup nur unter realer Netzlast weiter beobachten
 - Mini-Stundenplan-Matching mit echten Wochenplaenen weiter beobachten, vor allem bei haeufigen Vornamen-Clustern und Grenzfaellen wie `NameA`/`NameB`
 - Wochenwechsel- und Lock-Verhalten des Mini-Stundenplans im Alltag weiter beobachten, vor allem Montag/Dienstag bei frisch geoeffneten `KW_xx.docx`

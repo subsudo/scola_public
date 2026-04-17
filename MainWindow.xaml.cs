@@ -9,7 +9,6 @@ using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Text.Json;
 using System.Text.RegularExpressions;
-using Microsoft.Win32;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -251,7 +250,6 @@ public partial class MainWindow : Window
         Loaded += MainWindow_OnLoaded;
         WordService.TryCleanupBiTodoTempArtifactsOnStartup();
         _appUpdateService.TryCleanupSuccessfulUpdateArtifactsOnStartup();
-        SystemEvents.DisplaySettingsChanged += SystemEvents_OnDisplaySettingsChanged;
 
         AppLogger.Info($"MainWindow init. IsWordAvailable={IsWordAvailable}, ServerBasePath='{_config.ServerBasePath}', UseSecondaryServerBasePath={_config.UseSecondaryServerBasePath}, SecondaryServerBasePath='{_config.SecondaryServerBasePath}'");
 
@@ -357,7 +355,6 @@ public partial class MainWindow : Window
             return;
         }
 
-        SystemEvents.DisplaySettingsChanged -= SystemEvents_OnDisplaySettingsChanged;
         _weeklyScheduleRetryTimer.Stop();
         SaveWindowBoundsToPrefs();
         _wordStaHost.Dispose();
@@ -752,8 +749,7 @@ public partial class MainWindow : Window
             ? new Rect(Left, Top, Math.Max(Width, ActualWidth), Math.Max(Height, ActualHeight))
             : _autoFitRestoreBounds;
 
-        var workArea = GetPreferredRestoreMonitor(
-            App.UserPrefs.WindowMonitorDeviceName,
+        var workArea = GetMonitorContainingPoint(
             referenceBounds.Left + (referenceBounds.Width / 2.0),
             referenceBounds.Top + (referenceBounds.Height / 2.0)).WorkArea;
 
@@ -944,7 +940,7 @@ public partial class MainWindow : Window
 
             var centerX = Left + (ActualWidth / 2.0);
             var centerY = Top + (ActualHeight / 2.0);
-            var workArea = GetPreferredRestoreMonitor(App.UserPrefs.WindowMonitorDeviceName, centerX, centerY).WorkArea;
+            var workArea = GetMonitorContainingPoint(centerX, centerY).WorkArea;
             var maxHeight = Math.Max(_expandedWindowMinHeight, workArea.Height);
             var minTargetHeight = Math.Max(
                 _expandedWindowMinHeight,
@@ -2379,17 +2375,15 @@ public partial class MainWindow : Window
     private void RestoreWindowBoundsFromPrefs()
     {
         var prefs = App.UserPrefs;
-        var adjustedRect = ResolveStoredWindowBounds(prefs, out var preferredMonitorMissing, out var fallbackToPrimary);
+        var requestedWidth = prefs.WindowWidth is > 0 && prefs.WindowWidth.Value >= MinWidth
+            ? prefs.WindowWidth.Value
+            : Width;
+        var requestedHeight = prefs.WindowHeight is > 0 && prefs.WindowHeight.Value >= MinHeight
+            ? prefs.WindowHeight.Value
+            : Height;
+        var adjustedRect = CreateCenteredWindowRectOnPrimaryMonitor(requestedWidth, requestedHeight);
         ApplyRestoredWindowBounds(adjustedRect);
         _preferredExpandedWindowHeight = Math.Max(Height, _expandedWindowMinHeight);
-
-        if (fallbackToPrimary)
-        {
-            AppLogger.Warn(preferredMonitorMissing
-                ? "Gespeicherter Monitor ist nicht mehr vorhanden. Fenster wurde auf den primären Monitor zurückgesetzt."
-                : "Fensterposition lag ausserhalb sichtbarer Monitore und wurde auf primären Monitor zurückgesetzt.");
-            SaveWindowBoundsToPrefs();
-        }
 
         if (prefs.WindowWasMaximized)
         {
@@ -2410,16 +2404,9 @@ public partial class MainWindow : Window
 
             if (bounds.Width >= MinWidth && storedHeight >= _expandedWindowMinHeight)
             {
-                App.UserPrefs.WindowLeft = bounds.Left;
-                App.UserPrefs.WindowTop = bounds.Top;
                 App.UserPrefs.WindowWidth = bounds.Width;
                 App.UserPrefs.WindowHeight = storedHeight;
             }
-
-            var centerX = bounds.Left + (bounds.Width / 2.0);
-            var centerY = bounds.Top + (bounds.Height / 2.0);
-            var monitor = GetPreferredRestoreMonitor(null, centerX, centerY);
-            App.UserPrefs.WindowMonitorDeviceName = monitor.DeviceName;
 
             App.UserPrefs.WindowWasMaximized = WindowState == WindowState.Maximized;
             App.SaveUserPrefs();
@@ -2428,42 +2415,6 @@ public partial class MainWindow : Window
         {
             AppLogger.Warn($"Fensterzustand konnte nicht gespeichert werden: {ex.Message}");
         }
-    }
-
-    private Rect ResolveStoredWindowBounds(UserPrefs prefs, out bool preferredMonitorMissing, out bool fallbackToPrimary)
-    {
-        var requestedWidth = prefs.WindowWidth is > 0 && prefs.WindowWidth.Value >= MinWidth
-            ? prefs.WindowWidth.Value
-            : Width;
-        var requestedHeight = prefs.WindowHeight is > 0 && prefs.WindowHeight.Value >= MinHeight
-            ? prefs.WindowHeight.Value
-            : Height;
-        var targetLeft = prefs.WindowLeft ?? Left;
-        var targetTop = prefs.WindowTop ?? Top;
-        var hasFiniteLeft = double.IsFinite(targetLeft);
-        var hasFiniteTop = double.IsFinite(targetTop);
-
-        preferredMonitorMissing = !string.IsNullOrWhiteSpace(prefs.WindowMonitorDeviceName)
-                                  && !TryGetMonitorByDeviceName(prefs.WindowMonitorDeviceName, out _);
-
-        var monitor = preferredMonitorMissing
-            ? GetPrimaryRestoreMonitor()
-            : GetPreferredRestoreMonitor(prefs.WindowMonitorDeviceName, targetLeft, targetTop);
-        var workArea = monitor.WorkArea;
-        var initialRect = new Rect(
-            hasFiniteLeft && !preferredMonitorMissing ? targetLeft : workArea.Left,
-            hasFiniteTop && !preferredMonitorMissing ? targetTop : workArea.Top,
-            requestedWidth,
-            requestedHeight);
-        var clampedRect = ClampWindowRectToWorkArea(initialRect, workArea);
-
-        fallbackToPrimary = preferredMonitorMissing || !IsWindowSufficientlyVisible(clampedRect);
-        if (!fallbackToPrimary)
-        {
-            return clampedRect;
-        }
-
-        return CreateCenteredWindowRectOnPrimaryMonitor(clampedRect.Width, clampedRect.Height);
     }
 
     private void ApplyRestoredWindowBounds(Rect bounds)
@@ -2477,65 +2428,6 @@ public partial class MainWindow : Window
         Height = Math.Max(MinHeight, bounds.Height);
         Left = bounds.Left;
         Top = bounds.Top;
-    }
-
-    private Rect GetCurrentRestoreCandidateBounds()
-    {
-        var bounds = WindowState == WindowState.Normal
-            ? new Rect(Left, Top, Width, Height)
-            : RestoreBounds;
-
-        if (!bounds.IsEmpty)
-        {
-            return bounds;
-        }
-
-        return new Rect(Left, Top, Math.Max(Width, ActualWidth), Math.Max(Height, ActualHeight));
-    }
-
-    private void SystemEvents_OnDisplaySettingsChanged(object? sender, EventArgs e)
-    {
-        _ = Dispatcher.BeginInvoke(new Action(EnsureWindowBoundsVisibleAfterDisplayChange));
-    }
-
-    private void EnsureWindowBoundsVisibleAfterDisplayChange()
-    {
-        if (!IsLoaded || _isApplyingWindowBounds)
-        {
-            return;
-        }
-
-        var currentBounds = GetCurrentRestoreCandidateBounds();
-        if (currentBounds.IsEmpty || IsWindowSufficientlyVisible(currentBounds))
-        {
-            return;
-        }
-
-        var restoreWasMaximized = WindowState == WindowState.Maximized;
-        var safeBounds = CreateCenteredWindowRectOnPrimaryMonitor(currentBounds.Width, currentBounds.Height);
-
-        _isApplyingWindowBounds = true;
-        try
-        {
-            if (restoreWasMaximized)
-            {
-                WindowState = WindowState.Normal;
-            }
-
-            ApplyRestoredWindowBounds(safeBounds);
-
-            if (restoreWasMaximized)
-            {
-                WindowState = WindowState.Maximized;
-            }
-        }
-        finally
-        {
-            _isApplyingWindowBounds = false;
-        }
-
-        AppLogger.Warn("Monitor-Layout geaendert: Hauptfenster wurde auf den primaeren Monitor zurueckgeholt.");
-        SaveWindowBoundsToPrefs();
     }
 
     private static Rect ClampWindowRectToWorkArea(Rect rect, Rect workArea)
@@ -2557,7 +2449,7 @@ public partial class MainWindow : Window
         return new Rect(left, top, width, height);
     }
 
-    private static MonitorDescriptor GetPreferredRestoreMonitor(string? preferredDeviceName, double fallbackLeft, double fallbackTop)
+    private static MonitorDescriptor GetMonitorContainingPoint(double x, double y)
     {
         var monitors = MonitorNative.EnumerateMonitors();
         if (monitors.Count == 0)
@@ -2572,81 +2464,17 @@ public partial class MainWindow : Window
                 false);
         }
 
-        if (!string.IsNullOrWhiteSpace(preferredDeviceName))
-        {
-            var exact = monitors
-                .FirstOrDefault(m => string.Equals(m.DeviceName, preferredDeviceName, StringComparison.OrdinalIgnoreCase));
-            if (!string.IsNullOrWhiteSpace(exact.DeviceName))
-            {
-                return exact;
-            }
-
-            return GetPrimaryRestoreMonitor(monitors);
-        }
-
-        var probeX = double.IsFinite(fallbackLeft) ? fallbackLeft : 0;
-        var probeY = double.IsFinite(fallbackTop) ? fallbackTop : 0;
-
-        return monitors
-            .OrderBy(m => DistanceToRect(probeX, probeY, m.WorkArea))
-            .First();
-    }
-
-    private static double DistanceToRect(double x, double y, Rect rect)
-    {
-        var clampedX = Math.Clamp(x, rect.Left, rect.Right);
-        var clampedY = Math.Clamp(y, rect.Top, rect.Bottom);
-        var dx = x - clampedX;
-        var dy = y - clampedY;
-        return (dx * dx) + (dy * dy);
-    }
-
-    private static bool IsWindowSufficientlyVisible(Rect windowRect)
-    {
-        if (windowRect.IsEmpty)
-        {
-            return true;
-        }
-
-        var monitors = MonitorNative.EnumerateMonitors();
-        if (monitors.Count == 0)
-        {
-            return true;
-        }
-
-        var visibleArea = 0.0;
+        var probeX = double.IsFinite(x) ? x : 0;
+        var probeY = double.IsFinite(y) ? y : 0;
         foreach (var monitor in monitors)
         {
-            var visible = Rect.Intersect(windowRect, monitor.WorkArea);
-            if (!visible.IsEmpty)
+            if (monitor.WorkArea.Contains(probeX, probeY))
             {
-                visibleArea += visible.Width * visible.Height;
+                return monitor;
             }
         }
 
-        if (visibleArea <= 0)
-        {
-            return false;
-        }
-
-        var area = Math.Max(1.0, windowRect.Width * windowRect.Height);
-        var visibleRatio = visibleArea / area;
-        return visibleRatio >= 0.20;
-    }
-
-    private static bool TryGetMonitorByDeviceName(string deviceName, out MonitorDescriptor monitor)
-    {
-        var monitors = MonitorNative.EnumerateMonitors();
-        var exact = monitors
-            .FirstOrDefault(m => string.Equals(m.DeviceName, deviceName, StringComparison.OrdinalIgnoreCase));
-        if (!string.IsNullOrWhiteSpace(exact.DeviceName))
-        {
-            monitor = exact;
-            return true;
-        }
-
-        monitor = default;
-        return false;
+        return GetPrimaryRestoreMonitor(monitors);
     }
 
     private static MonitorDescriptor GetPrimaryRestoreMonitor()
