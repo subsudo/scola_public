@@ -46,7 +46,6 @@ public partial class MainWindow : Window
         Thickness AbsenceStatusMargin,
         Thickness NotFoundHintMargin,
         Thickness WideActionRowMargin,
-        Thickness NarrowActionRowMargin,
         Thickness BatchToggleMargin,
         Thickness BatchPanelPadding,
         Thickness BatchDescriptionMargin,
@@ -91,10 +90,6 @@ public partial class MainWindow : Window
     private Participant? _expandedMiniScheduleParticipant;
     private readonly double _expandedWindowMinHeight;
     private double _preferredExpandedWindowHeight;
-    private bool _isAutoFitActive;
-    private bool _isApplyingWindowBounds;
-    private Rect _autoFitRestoreBounds = Rect.Empty;
-    private WindowState _autoFitRestoreWindowState = WindowState.Normal;
     private DisplayDensityProfile _displayDensityProfile = CreateDisplayDensityProfile(DisplayDensityMode.Standard);
     private bool _startupUpdateCheckStarted;
     private bool _isUpdateShutdownRequested;
@@ -110,19 +105,6 @@ public partial class MainWindow : Window
     public static readonly DependencyProperty ShowBtnBeProperty = RegisterLayoutProperty(nameof(ShowBtnBe), false);
     public static readonly DependencyProperty ShowBtnEintragBiProperty = RegisterLayoutProperty(nameof(ShowBtnEintragBi), false);
     public static readonly DependencyProperty IsDarkThemeProperty = RegisterLayoutProperty(nameof(IsDarkTheme), true);
-
-    public static readonly DependencyProperty IsWideLayoutProperty =
-        DependencyProperty.Register(
-            nameof(IsWideLayout),
-            typeof(bool),
-            typeof(MainWindow),
-            new PropertyMetadata(false));
-
-    public bool IsWideLayout
-    {
-        get => (bool)GetValue(IsWideLayoutProperty);
-        set => SetValue(IsWideLayoutProperty, value);
-    }
 
     public bool ShowParticipantInitials
     {
@@ -209,7 +191,7 @@ public partial class MainWindow : Window
         _layoutDebounceTimer.Tick += (_, _) =>
         {
             _layoutDebounceTimer.Stop();
-            UpdateLayoutMode();
+            UpdateDynamicMinWidth();
         };
         _weeklyScheduleRetryTimer = new DispatcherTimer
         {
@@ -220,6 +202,7 @@ public partial class MainWindow : Window
         Participants = new ObservableCollection<Participant>();
         BatchResults = new ObservableCollection<BatchResult>();
         BiTodoResults = new ObservableCollection<BiTodoCollectResult>();
+        Participants.CollectionChanged += Participants_OnCollectionChanged;
         BatchResults.CollectionChanged += BatchResults_OnCollectionChanged;
         BiTodoResults.CollectionChanged += BiTodoResults_OnCollectionChanged;
 
@@ -261,7 +244,7 @@ public partial class MainWindow : Window
         }
 
         UpdateMaxRestoreButton();
-        UpdateLayoutMode();
+        RequestDynamicMinWidthRefresh();
     }
 
     public ObservableCollection<Participant> Participants { get; }
@@ -286,16 +269,13 @@ public partial class MainWindow : Window
         {
             _preferredExpandedWindowHeight = Height;
         }
-
-        _layoutDebounceTimer.Stop();
-        _layoutDebounceTimer.Start();
     }
 
     private void TitleBar_OnMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
         if (e.ClickCount == 2)
         {
-            ToggleAutoFitRestore();
+            ToggleWindowMaximizeRestore();
             return;
         }
 
@@ -325,7 +305,7 @@ public partial class MainWindow : Window
     }
 
     private void MinimizeButton_OnClick(object sender, RoutedEventArgs e) => WindowState = WindowState.Minimized;
-    private void MaxRestoreButton_OnClick(object sender, RoutedEventArgs e) => ToggleAutoFitRestore();
+    private void MaxRestoreButton_OnClick(object sender, RoutedEventArgs e) => ToggleWindowMaximizeRestore();
     private void CloseButton_OnClick(object sender, RoutedEventArgs e) => Close();
 
     private void MainWindow_OnClosing(object? sender, CancelEventArgs e)
@@ -362,6 +342,8 @@ public partial class MainWindow : Window
 
     private async void MainWindow_OnLoaded(object sender, RoutedEventArgs e)
     {
+        RequestDynamicMinWidthRefresh();
+
         if (_startupUpdateCheckStarted)
         {
             return;
@@ -469,24 +451,14 @@ public partial class MainWindow : Window
 
     private void MainWindow_OnStateChanged(object? sender, EventArgs e)
     {
-        if (!_isApplyingWindowBounds && _isAutoFitActive && WindowState != WindowState.Normal)
-        {
-            _isAutoFitActive = false;
-            _autoFitRestoreBounds = Rect.Empty;
-        }
-
         UpdateMaxRestoreButton();
     }
 
-    private void ToggleAutoFitRestore()
+    private void ToggleWindowMaximizeRestore()
     {
-        if (_isAutoFitActive && !_autoFitRestoreBounds.IsEmpty)
-        {
-            RestoreFromAutoFit();
-            return;
-        }
-
-        ApplyAutoFitWindowBounds();
+        WindowState = WindowState == WindowState.Maximized
+            ? WindowState.Normal
+            : WindowState.Maximized;
     }
 
     private void UpdateMaxRestoreButton()
@@ -496,17 +468,9 @@ public partial class MainWindow : Window
             return;
         }
 
-        MaxRestoreButton.ToolTip = _isAutoFitActive ? "Vorherigen Zustand wiederherstellen" : "Autofit";
-        if (_isAutoFitActive)
-        {
-            MaxRestoreButton.SetResourceReference(Control.BackgroundProperty, "Brush.CardHover");
-            MaxRestoreButton.SetResourceReference(Control.BorderBrushProperty, "Brush.InputHoverBorder");
-        }
-        else
-        {
-            MaxRestoreButton.SetResourceReference(Control.BackgroundProperty, "Brush.PanelBg");
-            MaxRestoreButton.SetResourceReference(Control.BorderBrushProperty, "Brush.Border");
-        }
+        MaxRestoreButton.ToolTip = WindowState == WindowState.Maximized ? "Wiederherstellen" : "Maximieren";
+        MaxRestoreButton.SetResourceReference(Control.BackgroundProperty, "Brush.PanelBg");
+        MaxRestoreButton.SetResourceReference(Control.BorderBrushProperty, "Brush.Border");
     }
 
     // --- Input area ---
@@ -632,7 +596,7 @@ public partial class MainWindow : Window
             {
                 Participants.Add(participant);
             }
-            UpdateLayoutMode();
+            RequestDynamicMinWidthRefresh();
             BeginOdooMetadataWarmupForCurrentParticipants();
 
             var presentCount = Participants.Count(p => p.IsPresent);
@@ -736,132 +700,51 @@ public partial class MainWindow : Window
         Height = CalculateCompactWindowHeight();
     }
 
-    private void ApplyAutoFitWindowBounds()
+    private void RequestDynamicMinWidthRefresh()
     {
-        UpdateLayout();
+        _layoutDebounceTimer.Stop();
+        _layoutDebounceTimer.Start();
+    }
 
-        _autoFitRestoreWindowState = WindowState;
-        _autoFitRestoreBounds = WindowState == WindowState.Normal
+    private void UpdateDynamicMinWidth()
+    {
+        var baselineMinWidth = 280d;
+        var targetMinWidth = baselineMinWidth;
+
+        if (Participants.Count > 0)
+        {
+            var bounds = GetCurrentWindowBoundsForMonitorReference();
+            var monitor = GetMonitorContainingPoint(
+                bounds.Left + (bounds.Width / 2.0),
+                bounds.Top + (bounds.Height / 2.0));
+            targetMinWidth = Math.Min(
+                Math.Ceiling(CalculateRequiredParticipantContentWidth()),
+                Math.Max(baselineMinWidth, monitor.WorkArea.Width));
+        }
+
+        MinWidth = Math.Max(baselineMinWidth, targetMinWidth);
+    }
+
+    private Rect GetCurrentWindowBoundsForMonitorReference()
+    {
+        var bounds = WindowState == WindowState.Normal
             ? new Rect(Left, Top, Width, Height)
             : RestoreBounds;
-
-        var referenceBounds = _autoFitRestoreBounds.IsEmpty
-            ? new Rect(Left, Top, Math.Max(Width, ActualWidth), Math.Max(Height, ActualHeight))
-            : _autoFitRestoreBounds;
-
-        var workArea = GetMonitorContainingPoint(
-            referenceBounds.Left + (referenceBounds.Width / 2.0),
-            referenceBounds.Top + (referenceBounds.Height / 2.0)).WorkArea;
-
-        var targetWidth = CalculateAutoFitWidth(workArea);
-        double targetHeight;
-        double targetLeft;
-        double targetTop;
-
-        _isApplyingWindowBounds = true;
-        try
+        if (!bounds.IsEmpty)
         {
-            BeginAnimation(HeightProperty, null);
-            BeginAnimation(WidthProperty, null);
-            WindowState = WindowState.Normal;
-            SizeToContent = SizeToContent.Manual;
-            MinHeight = _expandedWindowMinHeight;
-            Width = targetWidth;
-            UpdateLayoutMode();
-            UpdateLayout();
-
-            targetHeight = CalculateAutoFitHeight(workArea);
-            targetLeft = Math.Clamp(referenceBounds.Left, workArea.Left, Math.Max(workArea.Left, workArea.Right - targetWidth));
-            targetTop = Math.Clamp(referenceBounds.Top, workArea.Top, Math.Max(workArea.Top, workArea.Bottom - targetHeight));
-
-            Height = targetHeight;
-            Left = targetLeft;
-            Top = targetTop;
-        }
-        finally
-        {
-            _isApplyingWindowBounds = false;
+            return bounds;
         }
 
-        _isAutoFitActive = true;
-        UpdateLayoutMode();
-        UpdateMaxRestoreButton();
+        return new Rect(Left, Top, Math.Max(Width, ActualWidth), Math.Max(Height, ActualHeight));
     }
 
-    private void RestoreFromAutoFit()
+    private double CalculateRequiredParticipantContentWidth()
     {
-        var restoreBounds = _autoFitRestoreBounds;
-        var restoreState = _autoFitRestoreWindowState;
-
-        _isApplyingWindowBounds = true;
-        try
-        {
-            BeginAnimation(HeightProperty, null);
-            BeginAnimation(WidthProperty, null);
-            WindowState = WindowState.Normal;
-            SizeToContent = SizeToContent.Manual;
-
-            if (!restoreBounds.IsEmpty)
-            {
-                Width = restoreBounds.Width;
-                Height = restoreBounds.Height;
-                Left = restoreBounds.Left;
-                Top = restoreBounds.Top;
-            }
-
-            if (restoreState == WindowState.Maximized)
-            {
-                WindowState = WindowState.Maximized;
-            }
-        }
-        finally
-        {
-            _isApplyingWindowBounds = false;
-        }
-
-        _isAutoFitActive = false;
-        _autoFitRestoreBounds = Rect.Empty;
-        UpdateLayoutMode();
-        UpdateMaxRestoreButton();
-    }
-
-    private double CalculateAutoFitWidth(Rect workArea)
-    {
-        if (Participants.Count == 0 || ResultsContainer.Visibility != Visibility.Visible)
-        {
-            return Math.Clamp(Math.Max(MinWidth, Width), MinWidth, workArea.Width);
-        }
-
-        var requiredWideWidth = MeasureMaxNameWidth()
-                                + MeasureActionButtonsWidth()
-                                + LeftNamePrefixWidth
-                                + WideLayoutContainerPaddingWidth
-                                + WideLayoutSafetyWidth
-                                + 12;
-
-        return Math.Clamp(Math.Ceiling(requiredWideWidth), MinWidth, workArea.Width);
-    }
-
-    private double CalculateAutoFitHeight(Rect workArea)
-    {
-        if (ResultsContainer.Visibility != Visibility.Visible
-            || ResultsScrollViewer is null
-            || ResultsContentStack is null)
-        {
-            return Math.Clamp(Math.Ceiling(CalculateCompactWindowHeight()), _expandedWindowMinHeight, workArea.Height);
-        }
-
-        UpdateLayout();
-
-        if (ResultsScrollViewer.ViewportHeight <= 0 || ResultsContentStack.ActualHeight <= 0)
-        {
-            return Math.Clamp(Math.Max(_expandedWindowMinHeight, Height), _expandedWindowMinHeight, workArea.Height);
-        }
-
-        var overflow = Math.Max(0, ResultsContentStack.ActualHeight - ResultsScrollViewer.ViewportHeight);
-        var baseHeight = Math.Max(ActualHeight, Height);
-        var targetHeight = Math.Ceiling(baseHeight + overflow + 12);
-        return Math.Clamp(targetHeight, _expandedWindowMinHeight, workArea.Height);
+        return MeasureMaxNameWidth()
+               + MeasureActionButtonsWidth()
+               + LeftNamePrefixWidth
+               + WideLayoutContainerPaddingWidth
+               + WideLayoutSafetyWidth;
     }
 
     private void ExpandWindowForResults()
@@ -1064,23 +947,6 @@ public partial class MainWindow : Window
 
     // --- Responsive layout ---
 
-    private void UpdateLayoutMode()
-    {
-        if (Participants.Count == 0)
-        {
-            IsWideLayout = false;
-            return;
-        }
-
-        var requiredWidth = MeasureMaxNameWidth()
-                            + MeasureActionButtonsWidth()
-                            + LeftNamePrefixWidth
-                            + WideLayoutContainerPaddingWidth
-                            + WideLayoutSafetyWidth;
-
-        IsWideLayout = ActualWidth >= requiredWidth;
-    }
-
     private double MeasureMaxNameWidth()
     {
         var max = 0.0;
@@ -1170,7 +1036,7 @@ public partial class MainWindow : Window
     {
         if (d is MainWindow window)
         {
-            window.UpdateLayoutMode();
+            window.RequestDynamicMinWidthRefresh();
         }
     }
 
@@ -1199,7 +1065,6 @@ public partial class MainWindow : Window
         SetDensityResource("Density.AbsenceStatusMargin", _displayDensityProfile.AbsenceStatusMargin);
         SetDensityResource("Density.NotFoundHintMargin", _displayDensityProfile.NotFoundHintMargin);
         SetDensityResource("Density.WideActionRowMargin", _displayDensityProfile.WideActionRowMargin);
-        SetDensityResource("Density.NarrowActionRowMargin", _displayDensityProfile.NarrowActionRowMargin);
         SetDensityResource("Density.BatchToggleMargin", _displayDensityProfile.BatchToggleMargin);
         SetDensityResource("Density.BatchPanelPadding", _displayDensityProfile.BatchPanelPadding);
         SetDensityResource("Density.BatchDescriptionMargin", _displayDensityProfile.BatchDescriptionMargin);
@@ -1217,7 +1082,7 @@ public partial class MainWindow : Window
             InputContainer.Height = _expandedInputHeight;
         }
 
-        UpdateLayoutMode();
+        RequestDynamicMinWidthRefresh();
     }
 
     private void SetDensityResource(string key, object value)
@@ -1251,7 +1116,6 @@ public partial class MainWindow : Window
                 new Thickness(10, 0, 0, 0),
                 new Thickness(0, 3, 0, 0),
                 new Thickness(10, 0, 0, 0),
-                new Thickness(22, 6, 0, 0),
                 new Thickness(0, 6, 0, 0),
                 new Thickness(9),
                 new Thickness(0, 0, 0, 6),
@@ -1279,7 +1143,6 @@ public partial class MainWindow : Window
                 new Thickness(8, 0, 0, 0),
                 new Thickness(0, 1, 0, 0),
                 new Thickness(8, 0, 0, 0),
-                new Thickness(18, 5, 0, 0),
                 new Thickness(0, 5, 0, 0),
                 new Thickness(7),
                 new Thickness(0, 0, 0, 5),
@@ -1307,7 +1170,6 @@ public partial class MainWindow : Window
                 new Thickness(10, 0, 0, 0),
                 new Thickness(0, 3, 0, 0),
                 new Thickness(10, 0, 0, 0),
-                new Thickness(22, 6, 0, 0),
                 new Thickness(0, 6, 0, 0),
                 new Thickness(9),
                 new Thickness(0, 0, 0, 6),
@@ -2324,6 +2186,11 @@ public partial class MainWindow : Window
         {
             ScheduleResultsHeightRefresh(allowShrink: false);
         }
+    }
+
+    private void Participants_OnCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
+    {
+        RequestDynamicMinWidthRefresh();
     }
 
     private void ScheduleResultsHeightRefresh(bool allowShrink)

@@ -30,6 +30,7 @@ Stand dieser Zusammenfassung: 2026-03-17
 - Debug-Logging per Toggle
 - Word-Leak-/Lock-Absicherungen
 - Hauptfenster startet deterministisch zentriert auf dem primaeren Monitor; nur Groesse und Maximiert-Zustand werden noch gemerkt
+- Teilnehmerkarten bleiben immer in einer einzigen Wide-Struktur; Buttons rutschen nicht mehr unter die Namen und die Fensterbreite hat dafuer eine dynamische Mindestbreite
 - Word-Fenster werden nur noch geöffnet/fokussiert; Größe und Position verwaltet Word selbst
 - Auto-Updater ueber GitHub Releases aus `subsudo/scola_public`
 - Mock-Testsetup
@@ -48,6 +49,7 @@ Stand dieser Zusammenfassung: 2026-03-17
 - Ghost-Word-Diagnostik fuer leere `DokumentN`-Fenster bleibt produktiv relevant, jetzt mit expliziter Zombie-Attach-Abwehr und konservativer Blankodokument-Bereinigung
 - Verhalten von Word bei mehreren offenen Instanzen/Fenstern
 - vereinfachtes Hauptfenster-Startverhalten auf verschiedenen Monitor-Setups im Alltag weiter beobachten
+- neue MinWidth-Logik der Teilnehmerkarten im Alltag weiter beobachten, vor allem bei sehr langen Namen und wechselnden sichtbaren Buttons
 - Odoo-Metadaten-Warmup nur unter realer Netzlast weiter beobachten
 - Mini-Stundenplan-Matching mit echten Wochenplaenen weiter beobachten, vor allem bei haeufigen Vornamen-Clustern und Grenzfaellen wie `NameA`/`NameB`
 - Wochenwechsel- und Lock-Verhalten des Mini-Stundenplans im Alltag weiter beobachten, vor allem Montag/Dienstag bei frisch geoeffneten `KW_xx.docx`

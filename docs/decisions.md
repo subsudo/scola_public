@@ -146,7 +146,6 @@ Aktuelle Regel:
 - beim Start wird das Hauptfenster immer zentriert auf dem primaeren Monitor geoeffnet
 - `WindowWidth`, `WindowHeight` und `WindowWasMaximized` bleiben erhalten
 - exakte Fensterposition und gespeicherte Monitor-DeviceNames werden nicht mehr persistiert
-- `AutoFit` orientiert sich am Monitor des aktuell laufenden Fensters, nicht an alten Prefs
 - auf `DisplaySettingsChanged` wird nicht mehr aktiv reagiert
 
 Begruendung:
@@ -182,6 +181,22 @@ Begruendung:
 - reduziert versehentliche Veroeffentlichungen
 - passt zum produktnahen, kontrollierten Arbeitsstil des Projekts
 - ist fuer Mensch und KI leichter verlässlich einzuhalten als ein halbautomatischer Mischprozess
+
+## D19 - Teilnehmerkarten bleiben immer Wide, Fensterbreite nur mit Untergrenze
+Scola verwendet fuer Teilnehmerkarten keine Narrow-Fallback-Struktur mit Buttons unter dem Namen mehr.
+
+Aktuelle Regel:
+- pro Teilnehmerkarte gibt es nur noch eine Button-Zeile rechts neben dem Namen
+- die Abwesenheitsinfo wird in der unteren Sekundaerzeile der Karte dargestellt, nicht mehr in der Kopfzeile
+- die Fensterbreite bekommt eine dynamische `MinWidth` aus laengstem sichtbaren Namen plus sichtbaren Buttons
+- Scola vergroessert die effektive Mindestbreite bei Bedarf, verkleinert die Fensterbreite aber nie automatisch
+- eine vom User bewusst groesser gewaehlte Fensterbreite bleibt erhalten
+- `AutoFit` ist entfernt; Doppelklick in der Titelleiste toggelt nur noch zwischen `Normal` und `Maximized`
+
+Begruendung:
+- verhindert strukturell, dass Buttons unter die Namen rutschen
+- ist alltagsrobuster und leichter vorhersehbar als ein Layout-Switch zwischen Wide und Narrow
+- respektiert die Nutzerpraeferenz fuer eine bewusst breitere Fensteransicht
 
 ## D17 - Wochenplan-Fehlversuche gelten nicht als gueltiger leerer Stand
 Temporäre Lesefehler beim Mini-Stundenplan, zum Beispiel gesperrte `KW_xx.docx` am Wochenwechsel, werden nicht als leerer Wochenplan persistiert.

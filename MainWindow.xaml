@@ -50,7 +50,6 @@
         <Thickness x:Key="Density.AbsenceStatusMargin">12,0,0,0</Thickness>
         <Thickness x:Key="Density.NotFoundHintMargin">0,4,0,0</Thickness>
         <Thickness x:Key="Density.WideActionRowMargin">12,0,0,0</Thickness>
-        <Thickness x:Key="Density.NarrowActionRowMargin">24,8,0,0</Thickness>
         <Thickness x:Key="Density.BatchToggleMargin">0,8,0,0</Thickness>
         <Thickness x:Key="Density.BatchPanelPadding">10</Thickness>
         <Thickness x:Key="Density.BatchDescriptionMargin">0,0,0,8</Thickness>
@@ -775,7 +774,6 @@
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="Auto" />
                             <ColumnDefinition Width="*" />
-                            <ColumnDefinition Width="Auto" />
                         </Grid.ColumnDefinitions>
 
                         <StackPanel Orientation="Horizontal"
@@ -801,32 +799,23 @@
                                 CommandParameter="{Binding}"
                                 VerticalAlignment="Center" />
 
-                        <TextBlock Grid.Column="2"
-                                   Text="{Binding AbsenceStatusText}"
-                                   Foreground="{DynamicResource Brush.SecondaryText}"
-                                   FontSize="{DynamicResource Density.SecondaryFontSize}"
-                                   Margin="{DynamicResource Density.AbsenceStatusMargin}"
-                                   VerticalAlignment="Center">
-                            <TextBlock.Style>
-                                <Style TargetType="TextBlock">
-                                    <Setter Property="Visibility" Value="Collapsed" />
-                                    <Style.Triggers>
-                                        <MultiDataTrigger>
-                                            <MultiDataTrigger.Conditions>
-                                                <Condition Binding="{Binding ShowAbsenceStatus}" Value="True" />
-                                                <Condition Binding="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=IsWideLayout}" Value="False" />
-                                            </MultiDataTrigger.Conditions>
-                                            <Setter Property="Visibility" Value="Visible" />
-                                        </MultiDataTrigger>
-                                    </Style.Triggers>
-                                </Style>
-                            </TextBlock.Style>
-                        </TextBlock>
-
                         <StackPanel Grid.Row="1"
                                     Grid.Column="1"
-                                    Grid.ColumnSpan="2"
                                     Margin="{DynamicResource Density.NotFoundHintMargin}">
+                            <TextBlock Foreground="{DynamicResource Brush.SecondaryText}"
+                                       FontSize="{DynamicResource Density.SecondaryFontSize}"
+                                       Text="{Binding AbsenceStatusText}">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="Visibility" Value="Collapsed" />
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding ShowAbsenceStatus}" Value="True">
+                                                <Setter Property="Visibility" Value="Visible" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
                             <TextBlock Foreground="{DynamicResource Brush.SecondaryText}"
                                        FontSize="{DynamicResource Density.SecondaryFontSize}"
                                        Text="{Binding Initials}">
@@ -858,91 +847,6 @@
                                Orientation="Horizontal"
                                VerticalAlignment="Center"
                                ItemHeight="{DynamicResource Density.ActionRowItemHeight}">
-                        <WrapPanel.Style>
-                            <Style TargetType="WrapPanel">
-                                <Setter Property="Visibility" Value="Collapsed" />
-                                <Style.Triggers>
-                                    <DataTrigger Binding="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=IsWideLayout}" Value="True">
-                                        <Setter Property="Visibility" Value="Visible" />
-                                    </DataTrigger>
-                                </Style.Triggers>
-                            </Style>
-                        </WrapPanel.Style>
-                        <Button Style="{StaticResource ActionButtonStyle}"
-                                Click="OpenOdooButton_OnClick"
-                                CommandParameter="{Binding}"
-                                IsEnabled="{Binding CanOpenOdoo}"
-                                Visibility="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=ShowBtnOdoo, Converter={StaticResource BoolToVisibility}}">
-                            <TextBlock Text="Odoo" />
-                        </Button>
-                        <Button Style="{StaticResource ActionButtonStyle}"
-                                Click="OpenFolderButton_OnClick"
-                                CommandParameter="{Binding}"
-                                IsEnabled="{Binding CanOpenFolder}"
-                                Visibility="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=ShowBtnOrdner, Converter={StaticResource BoolToVisibility}}">
-                            <TextBlock Text="Ordner" />
-                        </Button>
-                        <Button Style="{StaticResource ActionButtonStyle}"
-                                Click="OpenAkteButton_OnClick"
-                                CommandParameter="{Binding}"
-                                IsEnabled="{Binding CanOpenAkte}"
-                                Visibility="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=ShowBtnAkte, Converter={StaticResource BoolToVisibility}}">
-                            <TextBlock Text="Akte" />
-                        </Button>
-                        <Button Style="{StaticResource ActionButtonStyle}"
-                                Click="OpenAkteBuButton_OnClick"
-                                CommandParameter="{Binding}"
-                                IsEnabled="{Binding CanOpenAkteBu}"
-                                Visibility="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=ShowBtnBu, Converter={StaticResource BoolToVisibility}}">
-                            <TextBlock Text="BU" />
-                        </Button>
-                        <Button Style="{StaticResource ActionButtonStyle}"
-                                Click="InsertEntryButton_OnClick"
-                                CommandParameter="{Binding}"
-                                IsEnabled="{Binding CanInsertEntry}"
-                                Visibility="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=ShowBtnEintrag, Converter={StaticResource BoolToVisibility}}">
-                            <TextBlock Text="Eintrag BU" />
-                        </Button>
-                        <Button Style="{StaticResource ActionButtonStyle}"
-                                Click="OpenAkteBiButton_OnClick"
-                                CommandParameter="{Binding}"
-                                IsEnabled="{Binding CanOpenAkteBi}"
-                                Visibility="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=ShowBtnBi, Converter={StaticResource BoolToVisibility}}">
-                            <TextBlock Text="BI" />
-                        </Button>
-                        <Button Style="{StaticResource ActionButtonStyle}"
-                                Click="OpenAkteBeButton_OnClick"
-                                CommandParameter="{Binding}"
-                                IsEnabled="{Binding CanOpenAkteBe}"
-                                Visibility="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=ShowBtnBe, Converter={StaticResource BoolToVisibility}}">
-                            <TextBlock Text="BE" />
-                        </Button>
-                        <Button Style="{StaticResource ActionButtonStyle}"
-                                Click="InsertEntryBiButton_OnClick"
-                                CommandParameter="{Binding}"
-                                IsEnabled="{Binding CanInsertEntryBi}"
-                                Visibility="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=ShowBtnEintragBi, Converter={StaticResource BoolToVisibility}}">
-                            <TextBlock Text="Eintrag BI" />
-                        </Button>
-                    </WrapPanel>
-
-                    <WrapPanel Grid.Row="1"
-                               Grid.Column="0"
-                               Grid.ColumnSpan="2"
-                               Margin="{DynamicResource Density.NarrowActionRowMargin}"
-                               Orientation="Horizontal"
-                               VerticalAlignment="Center"
-                               ItemHeight="{DynamicResource Density.ActionRowItemHeight}">
-                        <WrapPanel.Style>
-                            <Style TargetType="WrapPanel">
-                                <Setter Property="Visibility" Value="Visible" />
-                                <Style.Triggers>
-                                    <DataTrigger Binding="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=IsWideLayout}" Value="True">
-                                        <Setter Property="Visibility" Value="Collapsed" />
-                                    </DataTrigger>
-                                </Style.Triggers>
-                            </Style>
-                        </WrapPanel.Style>
                         <Button Style="{StaticResource ActionButtonStyle}"
                                 Click="OpenOdooButton_OnClick"
                                 CommandParameter="{Binding}"
@@ -1155,33 +1059,11 @@
                     <Button x:Name="MaxRestoreButton"
                             Style="{StaticResource TitleBarButtonStyle}"
                             Click="MaxRestoreButton_OnClick"
-                            ToolTip="Autofit">
-                        <Grid Width="12" Height="12">
-                            <Border Width="4"
-                                    Height="4"
-                                    HorizontalAlignment="Left"
-                                    VerticalAlignment="Top"
-                                    BorderBrush="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
-                                    BorderThickness="1,1,0,0" />
-                            <Border Width="4"
-                                    Height="4"
-                                    HorizontalAlignment="Right"
-                                    VerticalAlignment="Top"
-                                    BorderBrush="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
-                                    BorderThickness="0,1,1,0" />
-                            <Border Width="4"
-                                    Height="4"
-                                    HorizontalAlignment="Left"
-                                    VerticalAlignment="Bottom"
-                                    BorderBrush="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
-                                    BorderThickness="1,0,0,1" />
-                            <Border Width="4"
-                                    Height="4"
-                                    HorizontalAlignment="Right"
-                                    VerticalAlignment="Bottom"
-                                    BorderBrush="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
-                                    BorderThickness="0,0,1,1" />
-                        </Grid>
+                            ToolTip="Maximieren">
+                        <Border Width="10"
+                                Height="10"
+                                BorderBrush="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                                BorderThickness="1" />
                     </Button>
                     <Button Style="{StaticResource WindowControlButtonStyle}"
                             Click="CloseButton_OnClick"
