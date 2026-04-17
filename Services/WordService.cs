@@ -1,5 +1,6 @@
 using System.IO;
 using System.Diagnostics;
+using Microsoft.CSharp.RuntimeBinder;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Text.RegularExpressions;
@@ -21,6 +22,8 @@ public class WordService
     private static readonly TimeSpan BiTodoTempCleanupMaxAge = TimeSpan.FromHours(1);
     private static readonly TimeSpan BiTodoHiddenQuitWaitTimeout = TimeSpan.FromSeconds(3);
     private const int BiTodoInitialsColor = 0x45B0E1;
+    private const int HiddenWordProcessDiscoveryRetryCount = 5;
+    private const int HiddenWordProcessDiscoveryRetryDelayMs = 100;
     private const int WordAttachRetryCount = 3;
     private const int WordAttachRetryDelayMs = 150;
     private static readonly Regex MultiWhitespaceRegex = new(@"\s+", RegexOptions.Compiled);
@@ -463,29 +466,36 @@ public class WordService
             return null;
         }
 
-        dynamic wordApp = app;
-        var hwnd = TryReadInt64(() => Convert.ToInt64(wordApp.Hwnd))
-                   ?? TryReadComInt64Property(app, "Hwnd");
-        if (hwnd is null)
+        try
         {
-            dynamic? activeWindow = null;
-            try
+            dynamic wordApp = app;
+            var hwnd = TryReadInt64(() => Convert.ToInt64(wordApp.Hwnd))
+                       ?? TryReadComInt64Property(app, "Hwnd");
+            if (hwnd is null)
             {
-                activeWindow = wordApp.ActiveWindow;
-                hwnd = TryReadInt64(() => Convert.ToInt64(activeWindow.Hwnd))
-                       ?? TryReadComInt64Property(activeWindow, "Hwnd");
+                dynamic? activeWindow = null;
+                try
+                {
+                    activeWindow = wordApp.ActiveWindow;
+                    hwnd = TryReadInt64(() => Convert.ToInt64(activeWindow.Hwnd))
+                           ?? TryReadComInt64Property(activeWindow, "Hwnd");
+                }
+                catch
+                {
+                    hwnd = null;
+                }
+                finally
+                {
+                    SafeReleaseCom(activeWindow);
+                }
             }
-            catch
-            {
-                hwnd = null;
-            }
-            finally
-            {
-                SafeReleaseCom(activeWindow);
-            }
-        }
 
-        return TryGetProcessIdFromHwnd(hwnd);
+            return TryGetProcessIdFromHwnd(hwnd);
+        }
+        catch (RuntimeBinderException)
+        {
+            return null;
+        }
     }
 
     private static long? TryReadComInt64Property(object? comObject, string propertyName)
@@ -1624,20 +1634,44 @@ public class WordService
         {
         }
 
-        var createdProcessId = TryGetWordApplicationProcessId(app);
-        if (!createdProcessId.HasValue)
+        var createdProcessId = FindNewWordProcessIdAfterCreate(existingProcessIds);
+        if (createdProcessId.HasValue)
         {
-            createdProcessId = SnapshotRunningWordProcesses()
+            LogWordLifecycle(context, $"CreateDedicatedHiddenWordApplication: Hidden-PID={createdProcessId.Value}.");
+        }
+        else
+        {
+            LogWordLifecycle(context, "CreateDedicatedHiddenWordApplication: Hidden-PID konnte innerhalb von 500 ms nicht ermittelt werden.");
+            AppLogger.Warn("Word: Hidden-BI-PID konnte nach Start der versteckten Instanz nicht sicher ermittelt werden.");
+        }
+
+        LogWordLifecycle(context, "CreateDedicatedHiddenWordApplication: Dedizierte versteckte BI-Instanz erstellt.");
+        AppLogger.Info("Word: Dedizierte versteckte Instanz für BI: To-dos gestartet.");
+        return new WordApplicationHandle(app, true, 0, createdProcessId);
+    }
+
+    private static int? FindNewWordProcessIdAfterCreate(IReadOnlySet<int> existingProcessIds)
+    {
+        for (var attempt = 1; attempt <= HiddenWordProcessDiscoveryRetryCount; attempt++)
+        {
+            var createdProcessId = SnapshotRunningWordProcesses()
                 .Where(process => !existingProcessIds.Contains(process.ProcessId))
                 .OrderByDescending(process => process.StartTimeUtc ?? DateTime.MinValue)
                 .Select(static process => (int?)process.ProcessId)
                 .FirstOrDefault();
+
+            if (createdProcessId.HasValue)
+            {
+                return createdProcessId;
+            }
+
+            if (attempt < HiddenWordProcessDiscoveryRetryCount)
+            {
+                Thread.Sleep(HiddenWordProcessDiscoveryRetryDelayMs);
+            }
         }
 
-        LogWordLifecycle(context, $"CreateDedicatedHiddenWordApplication: Hidden-PID={FormatOptional(createdProcessId)}.");
-        LogWordLifecycle(context, "CreateDedicatedHiddenWordApplication: Dedizierte versteckte BI-Instanz erstellt.");
-        AppLogger.Info("Word: Dedizierte versteckte Instanz für BI: To-dos gestartet.");
-        return new WordApplicationHandle(app, true, 0, createdProcessId);
+        return null;
     }
 
     private static dynamic OpenReadOnlyHiddenDocument(dynamic app, string docPath, WordLifecycleOperationContext? context = null)
