@@ -46,6 +46,7 @@ public sealed class WordStaHost : IDisposable
     private readonly Thread _workerThread;
     private readonly TaskCompletionSource<bool> _ready = new(TaskCreationOptions.RunContinuationsAsynchronously);
     private volatile bool _isDisposed;
+    private volatile bool _isQueueCompletionRequested;
     private volatile Exception? _startupException;
 
     public WordStaHost()
@@ -130,7 +131,6 @@ public sealed class WordStaHost : IDisposable
         }
         finally
         {
-            _queue.Dispose();
             if (service is IDisposable disposable)
             {
                 disposable.Dispose();
@@ -148,18 +148,24 @@ public sealed class WordStaHost : IDisposable
         }
 
         _isDisposed = true;
-        try
+        if (!_isQueueCompletionRequested)
         {
-            _queue.CompleteAdding();
-        }
-        catch (ObjectDisposedException)
-        {
-            // Der Worker kann die Queue bei einem fruehen Startup-Fehler bereits entsorgt haben.
+            _isQueueCompletionRequested = true;
+            try
+            {
+                _queue.CompleteAdding();
+            }
+            catch (ObjectDisposedException)
+            {
+                // Defensive Absicherung fuer fruehe Startup-/Shutdown-Rennen.
+            }
         }
 
         if (Thread.CurrentThread != _workerThread && !_workerThread.Join(TimeSpan.FromSeconds(2)))
         {
             AppLogger.Warn("WordStaHost: Worker konnte beim Shutdown nicht rechtzeitig beendet werden.");
         }
+
+        _queue.Dispose();
     }
 }

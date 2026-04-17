@@ -158,6 +158,21 @@ Build, Publish und GitHub-Release fuer Scola werden bewusst nicht bei normalen C
 Aktuelle Regel:
 - normale Code-Aenderung = keine neue Version, keine Release
 - Test-EXE darf gebaut werden, ohne direkt veroeffentlicht zu werden
+
+## D17 - BI-Hidden-Word wird nicht an Nutzer weitergereicht
+Der `BI: To-dos`-Sammellauf darf keine versteckte Automations-Word-Instanz fuer spaetere normale Word-Aktionen hinterlassen.
+
+Aktuelle Regel:
+- BI-Inhalte duerfen intern in einer dedizierten versteckten Word-Instanz aufgebaut werden
+- das sichtbare BI-Ergebnis wird danach per temporaerer `docx` in eine normale user-facing Word-Instanz uebergeben
+- die versteckte BI-Instanz wird anschliessend immer aktiv beendet
+- Attach an versteckte/zombiehafte Word-Instanzen wird verworfen
+- leere unspeicherte Blankodokumente duerfen konservativ aufgeraeumt werden, wenn sie nicht das aktive oder das Ziel-Dokument sind
+
+Begruendung:
+- offene Ghost-Dokumente wie `Dokument25` / `Dokument58` entstanden aus ueberlebenden Hidden-BI-Instanzen
+- ein sichtbares BI-Ergebnis soll fuer den Nutzer normal benutzbar bleiben, aber nicht an einer versteckten Automationsinstanz haengen
+- konservative Ghost-Bereinigung ist alltagsrobuster als weitere Diagnose ohne Lifecycle-Fix
 - echte Release nur auf ausdruecklichen Wunsch
 - operative Details stehen in `docs/release-workflow.md`
 

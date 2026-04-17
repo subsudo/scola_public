@@ -17,6 +17,8 @@ public class WordService
     private const int ClipboardReadRetryBaseDelayMs = 100;
     private const string BiTodoTemplateFileName = "Bi Vorlage 2.docx";
     private const string BiTodoTemplateResourceName = "VerlaufsakteApp.Templates.BiVorlage.docx";
+    private const string BiTodoTempFilePrefix = "BI_";
+    private static readonly TimeSpan BiTodoTempCleanupMaxAge = TimeSpan.FromHours(1);
     private const int BiTodoInitialsColor = 0x45B0E1;
     private static readonly Regex MultiWhitespaceRegex = new(@"\s+", RegexOptions.Compiled);
 
@@ -63,6 +65,8 @@ public class WordService
         public bool IsUnsaved { get; init; }
     }
 
+    private readonly record struct WordDocumentIdentity(string Name, string FullName, string Path, string NormalizedPath, bool IsUnsaved, bool HasPersistedPath);
+
     private sealed class WordProcessSnapshot
     {
         public required int ProcessId { get; init; }
@@ -75,6 +79,42 @@ public class WordService
     private static int _wordLifecycleOperationSequence;
 
     public bool IsWordAvailable => Type.GetTypeFromProgID("Word.Application") is not null;
+
+    public static void TryCleanupBiTodoTempArtifactsOnStartup()
+    {
+        try
+        {
+            var tempDirectory = GetBiTodoTempDirectoryPath();
+            if (!Directory.Exists(tempDirectory))
+            {
+                return;
+            }
+
+            var utcNow = DateTime.UtcNow;
+            foreach (var filePath in Directory.EnumerateFiles(tempDirectory, $"{BiTodoTempFilePrefix}*.docx", SearchOption.TopDirectoryOnly))
+            {
+                try
+                {
+                    var age = utcNow - File.GetLastWriteTimeUtc(filePath);
+                    if (age < BiTodoTempCleanupMaxAge)
+                    {
+                        continue;
+                    }
+
+                    File.Delete(filePath);
+                    AppLogger.Debug($"Word: Alte BI-Handoff-Datei beim Start entfernt. Path='{filePath}'.");
+                }
+                catch (Exception ex)
+                {
+                    AppLogger.Warn($"Word: Alte BI-Handoff-Datei konnte beim Start nicht gelöscht werden: {ex.Message}");
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            AppLogger.Warn($"Word: Start-Cleanup für BI-Handoff-Dateien fehlgeschlagen: {ex.Message}");
+        }
+    }
 
     private static bool IsWordLifecycleLoggingEnabled()
     {
@@ -372,6 +412,18 @@ public class WordService
     }
 
     private static long? TryReadInt64(Func<long> getter)
+    {
+        try
+        {
+            return getter();
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private static object? TryReadObject(Func<object?> getter)
     {
         try
         {
@@ -1100,9 +1152,12 @@ public class WordService
         dynamic? app = null;
         dynamic? templateDoc = null;
         dynamic? resultDoc = null;
+        dynamic? userFacingApp = null;
+        dynamic? userFacingDoc = null;
         BiTodoTemplateDefinition? template = null;
         string? templatePath = null;
-        var keepResultDocumentOpen = false;
+        string? handoffPath = null;
+        var handoffSucceeded = false;
         var hasWrittenAnyBlock = false;
         var lifecycle = BeginWordLifecycleOperation(nameof(CollectBiTodoDocument), documentTitle, bookmarkName);
 
@@ -1246,11 +1301,35 @@ public class WordService
 
             if (hasWrittenAnyBlock)
             {
-                EnsureWordUiState(app, lifecycle);
-                LogWordLifecycleAppState(app, lifecycle, "AfterEnsureWordUiState");
-                LogWordLifecycleDocumentSnapshot(app, lifecycle, "AfterEnsureWordUiState");
-                FocusDocument(app, resultDoc);
-                keepResultDocumentOpen = true;
+                handoffPath = SaveBiTodoResultDocumentToTemp(resultDoc, lifecycle);
+                LogWordLifecycle(lifecycle, $"CollectBiTodoDocument: BI-Ergebnis nach Temp gespeichert. Path='{SanitizeForLog(handoffPath)}'.");
+                TryCloseDocumentSilently(resultDoc, "Word: BI-Ergebnisdokument in versteckter Instanz für Handoff geschlossen.");
+                LogWordLifecycle(lifecycle, "CollectBiTodoDocument: Hidden-Ergebnisdokument geschlossen.");
+                SafeReleaseCom(resultDoc);
+                resultDoc = null;
+
+                TryQuitWordApplication(app, "Word: Dedizierte versteckte BI-Instanz nach Handoff beendet.");
+                LogWordLifecycle(lifecycle, "CollectBiTodoDocument: Hidden-BI-Instanz beendet.");
+                SafeReleaseCom(app);
+                app = null;
+
+                var userFacingHandle = CreateOrAttachWordApplication(lifecycle);
+                userFacingApp = userFacingHandle.App;
+                LogWordLifecycleAppState(
+                    userFacingApp,
+                    lifecycle,
+                    "AfterCreateOrAttachUserFacingWordApplication",
+                    userFacingHandle.WasCreatedHere,
+                    userFacingHandle.InitialUnsavedDocumentCount);
+
+                userFacingDoc = CreateBiTodoUserFacingDocumentFromTemp(userFacingApp, handoffPath, lifecycle);
+                LogWordLifecycleDocumentSnapshot(userFacingApp, lifecycle, "AfterAddBiTodoDocumentFromTemplate");
+                EnsureWordUiState(userFacingApp, lifecycle);
+                LogWordLifecycleAppState(userFacingApp, lifecycle, "AfterEnsureWordUiState");
+                FocusDocument(userFacingApp, userFacingDoc);
+                DeleteTempFileQuietly(handoffPath, "Word: Temporäre BI-Handoff-Datei konnte nicht gelöscht werden.");
+                handoffPath = null;
+                handoffSucceeded = true;
                 summary.DocumentOpened = true;
             }
 
@@ -1275,17 +1354,28 @@ public class WordService
         }
         finally
         {
-            LogWordLifecycleFinally(lifecycle, app, openedHere: false, operationSucceeded: keepResultDocumentOpen || hasWrittenAnyBlock, shouldQuitCreatedApp: !keepResultDocumentOpen, finalStage: "Finally-BeforeCleanup");
+            LogWordLifecycleFinally(
+                lifecycle,
+                userFacingApp ?? app,
+                openedHere: false,
+                operationSucceeded: handoffSucceeded,
+                shouldQuitCreatedApp: !handoffSucceeded,
+                finalStage: "Finally-BeforeCleanup");
             if (templateDoc is not null)
             {
                 TryCloseDocumentSilently(templateDoc, "Word: BI-Vorlage geschlossen.");
             }
 
-            if (!keepResultDocumentOpen)
+            if (resultDoc is not null)
             {
-                LogWordLifecycle(lifecycle, "Finally: BI-Ergebnisdokument wird geschlossen und dedizierte Instanz beendet.");
+                LogWordLifecycle(lifecycle, "Finally: BI-Ergebnisdokument wird geschlossen.");
                 TryCloseDocumentSilently(resultDoc, "Word: Leeres BI-To-do-Ergebnisdokument geschlossen.");
-                TryQuitWordApplication(app);
+            }
+
+            if (app is not null)
+            {
+                LogWordLifecycle(lifecycle, "Finally: Dedizierte BI-Instanz wird beendet.");
+                TryQuitWordApplication(app, "Word: Dedizierte versteckte BI-Instanz beendet.");
             }
 
             if (template is not null)
@@ -1299,8 +1389,9 @@ public class WordService
                     template.BlankParagraph);
             }
 
-            SafeReleaseCom(templateDoc, resultDoc, app);
-            DeleteTempFileQuietly(templatePath);
+            SafeReleaseCom(templateDoc, resultDoc, app, userFacingDoc, userFacingApp);
+            DeleteTempFileQuietly(templatePath, "Word: Temporäre BI-Vorlage konnte nicht gelöscht werden.");
+            DeleteTempFileQuietly(handoffPath, "Word: Temporäre BI-Handoff-Datei konnte nicht gelöscht werden.");
             LogWordLifecycleProcessSnapshot(lifecycle, "Finally-AfterRelease");
             LogWordLifecycle(lifecycle, "Ende der Operation, COM-Referenzen freigegeben.");
         }
@@ -1316,6 +1407,24 @@ public class WordService
             {
                 try
                 {
+                    if (ShouldRejectAttachedWordApplication(runningApp, context, out var rejectionReason))
+                    {
+                        LogWordLifecycle(context, $"CreateOrAttach: Attach an versteckte/zombiehafte Instanz verworfen. Reason='{SanitizeForLog(rejectionReason)}'.");
+                        AppLogger.Warn($"Word: Versteckte oder zombiehafte Word-Instanz beim Attach verworfen ({rejectionReason}).");
+                        if (Marshal.IsComObject(runningApp))
+                        {
+                            Marshal.ReleaseComObject(runningApp);
+                        }
+
+                        runningApp = null;
+                    }
+
+                    if (runningApp is null)
+                    {
+                        LogWordLifecycle(context, "CreateOrAttach: Verworfenes ROT-Objekt, stattdessen neue Word-Instanz.");
+                        throw new COMException("Versteckte/zombiehafte Word-Instanz verworfen.", unchecked((int)0x800401E3));
+                    }
+
                     var unsavedDocumentCount = CountUnsavedDocuments(runningApp);
                     LogWordLifecycle(context, $"CreateOrAttach: Bestehende Word-Instanz gefunden. InitialUnsaved={unsavedDocumentCount}.");
                     AppLogger.Info($"Word: An bestehende Instanz angehaengt. Ungespeicherte Dokumente davor={unsavedDocumentCount}.");
@@ -1323,7 +1432,7 @@ public class WordService
                 }
                 catch
                 {
-                    if (Marshal.IsComObject(runningApp))
+                    if (runningApp is not null && Marshal.IsComObject(runningApp))
                     {
                         Marshal.ReleaseComObject(runningApp);
                     }
@@ -1354,6 +1463,28 @@ public class WordService
         LogWordLifecycle(context, $"CreateOrAttach: Neue Word-Instanz erstellt. InitialUnsavedObserved={createdUnsavedDocumentCount}.");
         AppLogger.Info($"Word: Neue Instanz gestartet. Ungespeicherte Dokumente initial={createdUnsavedDocumentCount}.");
         return new WordApplicationHandle(app, true, 0);
+    }
+
+    private static bool ShouldRejectAttachedWordApplication(object app, WordLifecycleOperationContext? context, out string reason)
+    {
+        reason = string.Empty;
+
+        var isVisible = TryReadBool(() => ((dynamic)app).Visible);
+        if (isVisible is not false)
+        {
+            return false;
+        }
+
+        var mainWindowHandle = TryGetWordMainWindowHandle(app);
+        var windowCount = TryReadInt(() => (int)((dynamic)app).Windows.Count);
+        if (mainWindowHandle != IntPtr.Zero && (windowCount is null || windowCount > 0))
+        {
+            return false;
+        }
+
+        reason = $"Visible={FormatOptional(isVisible)}, Hwnd={mainWindowHandle}, Windows={FormatOptional(windowCount)}";
+        LogWordLifecycle(context, $"ShouldRejectAttachedWordApplication: Hidden/Zombie-Verdacht. {reason}.");
+        return true;
     }
 
     private static dynamic OpenOrGetDocument(dynamic app, string docPath, out bool openedHere, WordLifecycleOperationContext? context = null)
@@ -1501,6 +1632,37 @@ public class WordService
         using var fileStream = File.Create(tempPath);
         resourceStream.CopyTo(fileStream);
         return tempPath;
+    }
+
+    private static string SaveBiTodoResultDocumentToTemp(dynamic resultDoc, WordLifecycleOperationContext? context = null)
+    {
+        var targetDirectory = GetBiTodoTempDirectoryPath();
+        Directory.CreateDirectory(targetDirectory);
+
+        var tempPath = Path.Combine(targetDirectory, $"{BiTodoTempFilePrefix}{Guid.NewGuid():N}.docx");
+        LogWordLifecycle(context, $"SaveBiTodoResultDocumentToTemp: SaveAs2 nach '{SanitizeForLog(tempPath)}'.");
+        resultDoc.SaveAs2(tempPath);
+        return tempPath;
+    }
+
+    private static dynamic CreateBiTodoUserFacingDocumentFromTemp(dynamic app, string tempPath, WordLifecycleOperationContext? context = null)
+    {
+        dynamic? docs = null;
+        try
+        {
+            docs = app.Documents;
+            LogWordLifecycle(context, $"CreateBiTodoUserFacingDocumentFromTemp: Documents.Add(Template) mit '{SanitizeForLog(tempPath)}'.");
+            return docs.Add(Template: tempPath, NewTemplate: false);
+        }
+        finally
+        {
+            SafeReleaseCom(docs);
+        }
+    }
+
+    private static string GetBiTodoTempDirectoryPath()
+    {
+        return Path.Combine(Path.GetTempPath(), "Scola");
     }
 
     private static BiTodoTemplateDefinition ResolveBiTodoTemplate(dynamic templateDoc)
@@ -2327,18 +2489,6 @@ public class WordService
 
     private static void EnsureWordUiState(dynamic app, WordLifecycleOperationContext? context = null)
     {
-        try
-        {
-            // Bei bereits laufender/angebundenen Instanz kann UserControl schreibgeschuetzt sein.
-            app.UserControl = true;
-            LogWordLifecycle(context, "EnsureWordUiState: UserControl erfolgreich gesetzt.");
-        }
-        catch (Exception ex)
-        {
-            LogWordLifecycle(context, $"EnsureWordUiState: UserControl fehlgeschlagen. Type='{SanitizeForLog(ex.GetType().Name)}', Message='{SanitizeForLog(ex.Message)}'.");
-            AppLogger.Warn($"Word.UserControl konnte nicht gesetzt werden: {ex.Message}");
-        }
-
         app.Visible = true;
         LogWordLifecycle(context, "EnsureWordUiState: Visible=true gesetzt.");
         TryBringWordToForeground(app);
@@ -2400,64 +2550,58 @@ public class WordService
     private static void CloseTransientEmptyDocuments(dynamic app, string targetDocPath, int initialUnsavedDocumentCount, WordLifecycleOperationContext? context = null)
     {
         dynamic? docs = null;
-        var unsavedDocuments = new List<object?>();
+        var documentsToClose = new List<object?>();
         try
         {
             docs = app.Documents;
             var targetPath = Path.GetFullPath(targetDocPath);
             var documentCount = (int)docs.Count;
+            var activeDocumentIdentity = TryGetDocumentIdentity(TryReadObject(() => (object)app.ActiveDocument));
             AppLogger.Debug($"Word.CloseTransientEmptyDocuments: Target='{targetPath}', InitialUnsaved={initialUnsavedDocumentCount}, OpenDocs={documentCount}.");
 
             for (var i = documentCount; i >= 1; i--)
             {
                 dynamic? openDoc = null;
-                var keepOpenDoc = false;
+                var shouldKeepReference = false;
                 try
                 {
                     openDoc = docs[i];
+                    var documentIdentity = TryGetDocumentIdentity(openDoc) ??
+                                           new WordDocumentIdentity(string.Empty, string.Empty, string.Empty, string.Empty, true, false);
+                    var isTargetDocument = documentIdentity.HasPersistedPath &&
+                                           documentIdentity.NormalizedPath.Equals(targetPath, StringComparison.OrdinalIgnoreCase);
 
-                    string? fullName = null;
-                    try
+                    if (isTargetDocument)
                     {
-                        fullName = openDoc.FullName as string;
-                    }
-                    catch
-                    {
-                        // Ignorieren.
-                    }
-
-                    if (!string.IsNullOrWhiteSpace(fullName) &&
-                        Path.GetFullPath(fullName).Equals(targetPath, StringComparison.OrdinalIgnoreCase))
-                    {
-                        LogWordLifecycle(context, $"CloseTransientEmptyDocuments: Ziel-Dokument uebersprungen. Index={i}, FullName='{SanitizeForLog(fullName)}'.");
+                        LogWordLifecycle(context, $"CloseTransientEmptyDocuments: Ziel-Dokument uebersprungen. Index={i}, FullName='{SanitizeForLog(documentIdentity.FullName)}'.");
                         continue;
                     }
 
-                    var isUnsavedDocument = IsUnsavedDocument(openDoc);
+                    var isActiveDocument = activeDocumentIdentity is not null && AreSameDocumentIdentity(documentIdentity, activeDocumentIdentity.Value);
+                    var isHardEmpty = IsHardEmptyDocument(openDoc);
+
                     LogWordLifecycle(
                         context,
-                        $"CloseTransientEmptyDocuments: Inspect Index={i}, FullName='{SanitizeForLog(fullName)}', IsUnsaved={isUnsavedDocument}.");
+                        $"CloseTransientEmptyDocuments: Inspect Index={i}, FullName='{SanitizeForLog(documentIdentity.FullName)}', IsUnsaved={documentIdentity.IsUnsaved}, IsActive={isActiveDocument}, IsHardEmpty={isHardEmpty}.");
 
-                    if (isUnsavedDocument)
+                    if (documentIdentity.IsUnsaved && !isActiveDocument && isHardEmpty)
                     {
-                        unsavedDocuments.Add(openDoc);
-                        keepOpenDoc = true;
+                        documentsToClose.Add(openDoc);
+                        shouldKeepReference = true;
                     }
                 }
                 finally
                 {
-                    if (!keepOpenDoc)
+                    if (!shouldKeepReference)
                     {
                         SafeReleaseCom(openDoc);
                     }
                 }
             }
 
-            var documentsToClose = Math.Max(0, unsavedDocuments.Count - Math.Max(0, initialUnsavedDocumentCount));
-            AppLogger.Debug($"Word.CloseTransientEmptyDocuments: UnsavedNow={unsavedDocuments.Count}, ToClose={documentsToClose}.");
-            for (var i = 0; i < unsavedDocuments.Count && documentsToClose > 0; i++, documentsToClose--)
+            AppLogger.Debug($"Word.CloseTransientEmptyDocuments: HardEmptyUnsaved={documentsToClose.Count}, InitialUnsaved={initialUnsavedDocumentCount}, ToClose={documentsToClose.Count}.");
+            foreach (var transientDoc in documentsToClose)
             {
-                dynamic? transientDoc = unsavedDocuments[i];
                 if (transientDoc is null)
                 {
                     continue;
@@ -2465,8 +2609,9 @@ public class WordService
 
                 try
                 {
-                    var transientName = TryReadString(() => transientDoc.Name as string) ?? string.Empty;
-                    transientDoc.Close(false);
+                    dynamic transientWordDoc = transientDoc;
+                    var transientName = TryReadString(() => transientWordDoc.Name as string) ?? string.Empty;
+                    transientWordDoc.Close(false);
                     LogWordLifecycle(context, $"CloseTransientEmptyDocuments: Transientes Leerdokument geschlossen. Name='{SanitizeForLog(transientName)}'.");
                     AppLogger.Info("Word: Transientes Leerdokument nach Aktion geschlossen.");
                 }
@@ -2484,13 +2629,89 @@ public class WordService
         }
         finally
         {
-            foreach (var unsavedDoc in unsavedDocuments)
+            foreach (var unsavedDoc in documentsToClose)
             {
                 SafeReleaseCom(unsavedDoc);
             }
 
             SafeReleaseCom(docs);
         }
+    }
+
+    private static bool IsHardEmptyDocument(object doc)
+    {
+        try
+        {
+            dynamic wordDoc = doc;
+            dynamic? content = null;
+            dynamic? inlineShapes = null;
+            dynamic? tables = null;
+            try
+            {
+                content = wordDoc.Content;
+                inlineShapes = wordDoc.InlineShapes;
+                tables = wordDoc.Tables;
+
+                var text = TryReadString(() => content.Text as string);
+                var inlineShapeCount = TryReadInt(() => (int)inlineShapes.Count);
+                var tableCount = TryReadInt(() => (int)tables.Count);
+
+                return string.IsNullOrWhiteSpace(text?.Trim()) &&
+                       inlineShapeCount == 0 &&
+                       tableCount == 0;
+            }
+            finally
+            {
+                SafeReleaseCom(content, inlineShapes, tables);
+            }
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private static WordDocumentIdentity? TryGetDocumentIdentity(object? doc)
+    {
+        if (doc is null)
+        {
+            return null;
+        }
+
+        var name = TryReadString(() => ((dynamic)doc).Name as string) ?? string.Empty;
+        var fullName = TryReadString(() => ((dynamic)doc).FullName as string) ?? string.Empty;
+        var path = TryReadString(() => ((dynamic)doc).Path as string) ?? string.Empty;
+        var normalizedPath = string.Empty;
+        if (!string.IsNullOrWhiteSpace(path))
+        {
+            try
+            {
+                normalizedPath = Path.GetFullPath(path);
+            }
+            catch
+            {
+                normalizedPath = path;
+            }
+        }
+
+        return new WordDocumentIdentity(
+            name,
+            fullName,
+            path,
+            normalizedPath,
+            string.IsNullOrWhiteSpace(path),
+            !string.IsNullOrWhiteSpace(path));
+    }
+
+    private static bool AreSameDocumentIdentity(WordDocumentIdentity left, WordDocumentIdentity right)
+    {
+        if (left.HasPersistedPath && right.HasPersistedPath)
+        {
+            return left.NormalizedPath.Equals(right.NormalizedPath, StringComparison.OrdinalIgnoreCase);
+        }
+
+        return string.Equals(left.Name, right.Name, StringComparison.OrdinalIgnoreCase) &&
+               string.Equals(left.FullName, right.FullName, StringComparison.OrdinalIgnoreCase);
     }
 
     private static void FocusBookmarkAtTop(dynamic app, dynamic doc, string bookmarkName)
@@ -2643,7 +2864,7 @@ public class WordService
         return IntPtr.Zero;
     }
 
-    private static void TryQuitWordApplication(dynamic? app)
+    private static void TryQuitWordApplication(dynamic? app, string? infoMessage = null)
     {
         if (app is null)
         {
@@ -2653,11 +2874,11 @@ public class WordService
         try
         {
             app.Quit(false);
-            AppLogger.Info("Word: Selbst gestartete Instanz nach Fehler geschlossen.");
+            AppLogger.Info(infoMessage ?? "Word: Selbst gestartete Instanz beendet.");
         }
         catch (Exception ex)
         {
-            AppLogger.Warn($"Word: Selbst gestartete Instanz konnte nach Fehler nicht beendet werden: {ex.Message}");
+            AppLogger.Warn($"Word: Selbst gestartete Instanz konnte nicht beendet werden: {ex.Message}");
         }
     }
 
@@ -2698,7 +2919,7 @@ public class WordService
         }
     }
 
-    private static void DeleteTempFileQuietly(string? filePath)
+    private static void DeleteTempFileQuietly(string? filePath, string? warnMessage = null)
     {
         if (string.IsNullOrWhiteSpace(filePath))
         {
@@ -2714,7 +2935,7 @@ public class WordService
         }
         catch (Exception ex)
         {
-            AppLogger.Warn($"Word: Temporäre BI-Vorlage konnte nicht gelöscht werden: {ex.Message}");
+            AppLogger.Warn($"{warnMessage ?? "Word: Temporäre Datei konnte nicht gelöscht werden:"} {ex.Message}");
         }
     }
 

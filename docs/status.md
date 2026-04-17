@@ -23,6 +23,7 @@ Stand dieser Zusammenfassung: 2026-03-17
 - `BI: To-dos` als eigener Sammellauf fuer angehakte TN
 - unsichtbares Lesen der BI-To-do-Tabelle per Word-Instanz ohne sichtbares Oeffnen der Quellakten
 - neues ungespeichertes Sammeldokument mit Titel, Name, Kuersel und kompletter To-do-Tabelle pro TN
+- BI-To-do-Ergebnisse werden nach dem versteckten Aufbau per temporaerer `docx` in eine normale sichtbare Word-Instanz uebergeben; die versteckte BI-Instanz wird danach aktiv beendet
 - app-gestyltes Abschlussfenster mit Status pro TN fuer den BI-To-do-Lauf
 - gestylte App-Dialoge fuer wichtige Warnungen/Fehler
 - Batch-Fehler-Zusammenfassung im App-Stil
@@ -44,6 +45,7 @@ Stand dieser Zusammenfassung: 2026-03-17
 ### Weiter beobachten
 - echte Produktionslogs fuer Parser-/Matching-Ausreisser
 - echte Produktionslogs fuer Word-Leerdokumente / Nebenwirkungen
+- Ghost-Word-Diagnostik fuer leere `DokumentN`-Fenster bleibt produktiv relevant, jetzt mit expliziter Zombie-Attach-Abwehr und konservativer Blankodokument-Bereinigung
 - Verhalten von Word bei mehreren offenen Instanzen/Fenstern
 - Hauptfenster-Restore nach Docking/Undocking im Alltag weiter beobachten
 - Odoo-Metadaten-Warmup nur unter realer Netzlast weiter beobachten

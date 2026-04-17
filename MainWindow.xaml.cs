@@ -249,6 +249,7 @@ public partial class MainWindow : Window
         ApplyCompactStartupWindowState();
         StatusBarVersion.Text = ApplicationVersionText;
         Loaded += MainWindow_OnLoaded;
+        WordService.TryCleanupBiTodoTempArtifactsOnStartup();
         _appUpdateService.TryCleanupSuccessfulUpdateArtifactsOnStartup();
         SystemEvents.DisplaySettingsChanged += SystemEvents_OnDisplaySettingsChanged;
 
