@@ -65,6 +65,7 @@ Aktuelle Regel:
 - die eigentliche Fensterposition und -groesse bleibt bei Word
 - minimiertes Word darf fuer den Fokus wiederhergestellt werden
 - nicht minimiertes Word wird nicht mehr aktiv verschoben, skaliert oder auf einen Monitor gezwungen
+- es gibt bewusst keine benutzerseitigen Einstellungen mehr fuer Word-Maximierung oder Zielmonitor
 
 Begruendung:
 - aktive COM-Fensterplatzierung war in der Praxis zu unzuverlaessig

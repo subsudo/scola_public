@@ -1202,9 +1202,7 @@ public partial class MainWindow : Window
             DefaultEntryInitials = App.UserPrefs.DefaultEntryInitials,
             EnableDebugLogging = App.UserPrefs.EnableDebugLogging,
             EnableWordLifecycleLogging = App.UserPrefs.EnableWordLifecycleLogging,
-            DisplayDensity = App.UserPrefs.DisplayDensity,
-            OpenWordMaximized = App.UserPrefs.OpenWordMaximized,
-            PreferredWordMonitorId = App.UserPrefs.PreferredWordMonitorId
+            DisplayDensity = App.UserPrefs.DisplayDensity
         };
 
         var dialog = new SettingsWindow(model)
@@ -1265,8 +1263,6 @@ public partial class MainWindow : Window
         App.UserPrefs.DefaultEntryInitials = result.DefaultEntryInitials;
         App.UserPrefs.EnableDebugLogging = result.EnableDebugLogging;
         App.UserPrefs.EnableWordLifecycleLogging = result.EnableWordLifecycleLogging;
-        App.UserPrefs.OpenWordMaximized = result.OpenWordMaximized;
-        App.UserPrefs.PreferredWordMonitorId = result.PreferredWordMonitorId;
         AppLogger.SetDebugEnabled(result.EnableDebugLogging);
         App.ApplyTheme(IsDarkTheme);
         App.SaveUserPrefs();

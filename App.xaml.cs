@@ -9,7 +9,6 @@ using System.Windows.Interop;
 using System.Windows.Media;
 using VerlaufsakteApp.Models;
 using VerlaufsakteApp.Services;
-using Forms = System.Windows.Forms;
 
 namespace VerlaufsakteApp;
 
@@ -155,7 +154,6 @@ public partial class App : System.Windows.Application
         var prefsService = new UserPrefsService(UserPrefsPath);
         UserPrefs = prefsService.Load();
         UserPrefs.DisplayDensity = Models.DisplayDensityMode.Normalize(UserPrefs.DisplayDensity);
-        UserPrefs.PreferredWordMonitorId = NormalizePreferredWordMonitorId(UserPrefs.PreferredWordMonitorId);
         AppLogger.SetDebugEnabled(UserPrefs.EnableDebugLogging);
         ApplyTheme(UserPrefs.IsDarkTheme);
 
@@ -649,29 +647,6 @@ public partial class App : System.Windows.Application
         {
             AppLogger.Warn($"settings.json konnte nach Standard-Pfad-Korrektur nicht gespeichert werden: {ex.Message}");
         }
-    }
-
-    private static string NormalizePreferredWordMonitorId(string? value)
-    {
-        if (string.IsNullOrWhiteSpace(value))
-        {
-            return SettingsWindowModel.PrimaryWordMonitorId;
-        }
-
-        var normalized = value.Trim();
-        if (string.Equals(normalized, SettingsWindowModel.PrimaryWordMonitorId, StringComparison.OrdinalIgnoreCase))
-        {
-            return SettingsWindowModel.PrimaryWordMonitorId;
-        }
-
-        var primaryScreen = Forms.Screen.PrimaryScreen;
-        if (primaryScreen is not null &&
-            string.Equals(normalized, primaryScreen.DeviceName, StringComparison.OrdinalIgnoreCase))
-        {
-            return SettingsWindowModel.PrimaryWordMonitorId;
-        }
-
-        return normalized;
     }
 
     private static class NativeMethods

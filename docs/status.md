@@ -32,6 +32,7 @@ Stand dieser Zusammenfassung: 2026-03-17
 - Hauptfenster startet deterministisch zentriert auf dem primaeren Monitor; nur Groesse und Maximiert-Zustand werden noch gemerkt
 - Teilnehmerkarten bleiben immer in einer einzigen Wide-Struktur; Buttons rutschen nicht mehr unter die Namen und die Fensterbreite hat dafuer eine dynamische Mindestbreite
 - Word-Fenster werden nur noch geöffnet/fokussiert; Größe und Position verwaltet Word selbst
+- die alten Word-Placement-Optionen sind aus den Einstellungen entfernt; Scola bietet dafuer bewusst keine eigene Monitor-/Maximierungssteuerung mehr an
 - Auto-Updater ueber GitHub Releases aus `subsudo/scola_public`
 - Mock-Testsetup
 - Git/GitHub-Grundlage mit `README.md`, `docs/`, `AGENTS.md` und `.gitignore`

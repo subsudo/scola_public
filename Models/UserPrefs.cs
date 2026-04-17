@@ -20,6 +20,4 @@ public class UserPrefs
     public double? WindowWidth { get; set; }
     public double? WindowHeight { get; set; }
     public bool WindowWasMaximized { get; set; }
-    public bool OpenWordMaximized { get; set; }
-    public string PreferredWordMonitorId { get; set; } = "__PRIMARY__";
 }

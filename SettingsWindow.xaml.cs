@@ -6,13 +6,11 @@ using System.Windows;
 using System.Windows.Controls;
 using Microsoft.Win32;
 using VerlaufsakteApp.Models;
-using Forms = System.Windows.Forms;
 
 namespace VerlaufsakteApp;
 
 public sealed class SettingsWindowModel
 {
-    public const string PrimaryWordMonitorId = "__PRIMARY__";
     public string ServerPath { get; set; } = string.Empty;
     public bool UseSecondaryServerPath { get; set; }
     public string SecondaryServerPath { get; set; } = string.Empty;
@@ -34,8 +32,6 @@ public sealed class SettingsWindowModel
     public string DefaultEntryInitials { get; set; } = string.Empty;
     public bool EnableDebugLogging { get; set; }
     public bool EnableWordLifecycleLogging { get; set; }
-    public bool OpenWordMaximized { get; set; }
-    public string PreferredWordMonitorId { get; set; } = PrimaryWordMonitorId;
 }
 
 public sealed class SettingsWindowResult
@@ -61,8 +57,6 @@ public sealed class SettingsWindowResult
     public string DefaultEntryInitials { get; set; } = string.Empty;
     public bool EnableDebugLogging { get; set; }
     public bool EnableWordLifecycleLogging { get; set; }
-    public bool OpenWordMaximized { get; set; }
-    public string PreferredWordMonitorId { get; set; } = SettingsWindowModel.PrimaryWordMonitorId;
 }
 
 public partial class SettingsWindow : Window, INotifyPropertyChanged
@@ -92,8 +86,6 @@ public partial class SettingsWindow : Window, INotifyPropertyChanged
     private string _defaultEntryInitials = string.Empty;
     private bool _enableDebugLogging;
     private bool _enableWordLifecycleLogging;
-    private bool _openWordMaximized;
-    private string _preferredWordMonitorId = SettingsWindowModel.PrimaryWordMonitorId;
     private bool _isDarkTheme;
     private string _displayDensity = DisplayDensityMode.Standard;
     private bool _isSaving;
@@ -226,28 +218,6 @@ public partial class SettingsWindow : Window, INotifyPropertyChanged
             }
         }
     }
-
-    public bool OpenWordMaximized
-    {
-        get => _openWordMaximized;
-        set
-        {
-            if (!SetField(ref _openWordMaximized, value))
-            {
-                return;
-            }
-
-            OnPropertyChanged(nameof(IsWordMonitorSelectionEnabled));
-        }
-    }
-
-    public string PreferredWordMonitorId
-    {
-        get => _preferredWordMonitorId;
-        set => SetField(ref _preferredWordMonitorId, NormalizeWordMonitorId(value));
-    }
-
-    public bool IsWordMonitorSelectionEnabled => OpenWordMaximized;
 
     public bool IsDarkTheme
     {
@@ -431,13 +401,9 @@ public partial class SettingsWindow : Window, INotifyPropertyChanged
         DefaultEntryInitials = model.DefaultEntryInitials;
         EnableDebugLogging = model.EnableDebugLogging;
         EnableWordLifecycleLogging = model.EnableWordLifecycleLogging;
-        OpenWordMaximized = model.OpenWordMaximized;
-        PreferredWordMonitorId = NormalizeWordMonitorId(model.PreferredWordMonitorId);
         IsDarkTheme = model.IsDarkTheme;
         DisplayDensity = model.DisplayDensity;
         _isInitializing = false;
-
-        PopulateWordMonitorOptions(PreferredWordMonitorId);
 
         NotifyPathStateChanged();
         UpdateDirtyState();
@@ -491,9 +457,7 @@ public partial class SettingsWindow : Window, INotifyPropertyChanged
             AutoPrefillOnEmptyClipboard = source.AutoPrefillOnEmptyClipboard,
             DefaultEntryInitials = (source.DefaultEntryInitials ?? string.Empty).Trim(),
             EnableDebugLogging = source.EnableDebugLogging,
-            EnableWordLifecycleLogging = source.EnableWordLifecycleLogging,
-            OpenWordMaximized = source.OpenWordMaximized,
-            PreferredWordMonitorId = NormalizeWordMonitorId(source.PreferredWordMonitorId)
+            EnableWordLifecycleLogging = source.EnableWordLifecycleLogging
         };
     }
 
@@ -546,9 +510,7 @@ public partial class SettingsWindow : Window, INotifyPropertyChanged
             AutoPrefillOnEmptyClipboard = AutoPrefillOnEmptyClipboard,
             DefaultEntryInitials = (DefaultEntryInitials ?? string.Empty).Trim(),
             EnableDebugLogging = EnableDebugLogging,
-            EnableWordLifecycleLogging = EnableWordLifecycleLogging,
-            OpenWordMaximized = OpenWordMaximized,
-            PreferredWordMonitorId = NormalizeWordMonitorId((WordMonitorComboBox.SelectedItem as ComboBoxItem)?.Tag?.ToString())
+            EnableWordLifecycleLogging = EnableWordLifecycleLogging
         };
     }
 
@@ -574,9 +536,7 @@ public partial class SettingsWindow : Window, INotifyPropertyChanged
                && left.AutoPrefillOnEmptyClipboard == right.AutoPrefillOnEmptyClipboard
                && string.Equals((left.DefaultEntryInitials ?? string.Empty).Trim(), (right.DefaultEntryInitials ?? string.Empty).Trim(), StringComparison.Ordinal)
                && left.EnableDebugLogging == right.EnableDebugLogging
-               && left.EnableWordLifecycleLogging == right.EnableWordLifecycleLogging
-               && left.OpenWordMaximized == right.OpenWordMaximized
-               && string.Equals(NormalizeWordMonitorId(left.PreferredWordMonitorId), NormalizeWordMonitorId(right.PreferredWordMonitorId), StringComparison.OrdinalIgnoreCase);
+               && left.EnableWordLifecycleLogging == right.EnableWordLifecycleLogging;
     }
 
     private void UpdateDirtyState()
@@ -627,11 +587,6 @@ public partial class SettingsWindow : Window, INotifyPropertyChanged
     private void LightThemeRadio_OnChecked(object sender, RoutedEventArgs e)
     {
         IsDarkTheme = false;
-    }
-
-    private void WordMaximizedToggle_OnChanged(object sender, RoutedEventArgs e)
-    {
-        OnPropertyChanged(nameof(IsWordMonitorSelectionEnabled));
     }
 
     private void BrowseSecondaryServerPath_OnClick(object sender, RoutedEventArgs e)
@@ -767,9 +722,7 @@ public partial class SettingsWindow : Window, INotifyPropertyChanged
             AutoPrefillOnEmptyClipboard = AutoPrefillOnEmptyClipboard,
             DefaultEntryInitials = (DefaultEntryInitials ?? string.Empty).Trim(),
             EnableDebugLogging = EnableDebugLogging,
-            EnableWordLifecycleLogging = EnableWordLifecycleLogging,
-            OpenWordMaximized = OpenWordMaximized,
-            PreferredWordMonitorId = NormalizeWordMonitorId((WordMonitorComboBox.SelectedItem as ComboBoxItem)?.Tag?.ToString())
+            EnableWordLifecycleLogging = EnableWordLifecycleLogging
         };
 
         _isSaving = true;
@@ -808,67 +761,6 @@ public partial class SettingsWindow : Window, INotifyPropertyChanged
 
         UpdateDirtyState();
         return true;
-    }
-
-    private void PopulateWordMonitorOptions(string preferredMonitorId)
-    {
-        WordMonitorComboBox.Items.Clear();
-        WordMonitorComboBox.Items.Add(new ComboBoxItem
-        {
-            Content = "Hauptbildschirm",
-            Tag = SettingsWindowModel.PrimaryWordMonitorId
-        });
-
-        var screens = Forms.Screen.AllScreens;
-        for (var i = 0; i < screens.Length; i++)
-        {
-            var screen = screens[i];
-            if (screen.Primary)
-            {
-                continue;
-            }
-
-            WordMonitorComboBox.Items.Add(new ComboBoxItem
-            {
-                Content = $"Monitor {i + 1}",
-                Tag = screen.DeviceName
-            });
-        }
-
-        var normalizedPreferred = NormalizeWordMonitorId(preferredMonitorId);
-        foreach (var item in WordMonitorComboBox.Items.OfType<ComboBoxItem>())
-        {
-            if (string.Equals(item.Tag?.ToString(), normalizedPreferred, StringComparison.OrdinalIgnoreCase))
-            {
-                WordMonitorComboBox.SelectedItem = item;
-                return;
-            }
-        }
-
-        WordMonitorComboBox.SelectedIndex = 0;
-    }
-
-    private static string NormalizeWordMonitorId(string? value)
-    {
-        if (string.IsNullOrWhiteSpace(value))
-        {
-            return SettingsWindowModel.PrimaryWordMonitorId;
-        }
-
-        var normalized = value.Trim();
-        var primaryScreen = Forms.Screen.PrimaryScreen;
-        if (string.Equals(normalized, SettingsWindowModel.PrimaryWordMonitorId, StringComparison.OrdinalIgnoreCase))
-        {
-            return SettingsWindowModel.PrimaryWordMonitorId;
-        }
-
-        if (primaryScreen is not null &&
-            string.Equals(normalized, primaryScreen.DeviceName, StringComparison.OrdinalIgnoreCase))
-        {
-            return SettingsWindowModel.PrimaryWordMonitorId;
-        }
-
-        return normalized;
     }
 
     private void OnPropertyChanged([CallerMemberName] string? propertyName = null)

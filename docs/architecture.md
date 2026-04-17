@@ -18,7 +18,7 @@ Scola ist eine WPF-Anwendung ohne separates MVVM-Framework. Die Architektur ist 
 - `MainWindow.xaml(.cs)`
   - Input, Ergebnisliste, TN-Karten, Aktionen, Batch, Toasts, Statusleiste, Mini-Stundenplan-Tray
 - `SettingsWindow.xaml(.cs)`
-  - Pfade, Anzeige, Buttons, Debug, Word-Fensteroptionen, Monitorauswahl
+  - Pfade, Anzeige, Buttons und Debug
 - `AppAlertWindow.xaml(.cs)`
   - gestylte Einzelwarnungen/-fehler im App-Stil
 - `BatchFailureSummaryWindow.xaml(.cs)`
@@ -110,15 +110,9 @@ Scola ist eine WPF-Anwendung ohne separates MVVM-Framework. Die Architektur ist 
 4. UI konsumiert `OdooUrl`
 
 ### 6. Word-Fensterverhalten
-1. UserPrefs liefern `OpenWordMaximized` und `PreferredWordMonitorId`
-2. `WordService` prueft diese Werte vor dem Fokussieren
-3. wenn aktiv:
-   - Zielmonitor bestimmen
-   - fehlender Monitor -> Hauptbildschirm
-   - Word auf `WorkingArea` setzen
-   - dann maximieren
-4. wenn deaktiviert:
-   - keine aktive Fensterplatzierung
+1. `WordService` setzt fuer Word nur Sichtbarkeit und Fokus
+2. minimiertes Word darf fuer den Fokus wiederhergestellt werden
+3. Position und Groesse der Word-Fenster ueberlaesst Scola vollstaendig Word
 
 ### 7. Mini-Stundenplan-Tray
 1. `SettingsWindow` liefert optional einen `ScheduleRootPath`
@@ -148,10 +142,9 @@ Scola ist eine WPF-Anwendung ohne separates MVVM-Framework. Die Architektur ist 
 - Odoo nur indirekt ueber Link aus Akten
 - Mini-Stundenplan read-only direkt aus `docx`, ohne Word
 - Auswertung der Eingabeliste laeuft mit sichtbarem Ladezustand und blockiert den UI-Thread nicht mehr vollstaendig
-- Windows Forms nur gezielt fuer Monitorermittlung im Word-Fensterverhalten
 - Word-Fenstersteuerung jetzt bewusst einfach:
-  - optional maximiert auf Zielmonitor
-  - keine freie Bounds-Wiederherstellung
+  - nur sichtbar machen und fokussieren
+  - keine aktive Platzierungslogik
 
 ## Architektur-Stolpersteine
 - `MainWindow.xaml.cs` ist gross und fachlich dicht.
