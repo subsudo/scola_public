@@ -19,7 +19,10 @@ public class WordService
     private const string BiTodoTemplateResourceName = "VerlaufsakteApp.Templates.BiVorlage.docx";
     private const string BiTodoTempFilePrefix = "BI_";
     private static readonly TimeSpan BiTodoTempCleanupMaxAge = TimeSpan.FromHours(1);
+    private static readonly TimeSpan BiTodoHiddenQuitWaitTimeout = TimeSpan.FromSeconds(3);
     private const int BiTodoInitialsColor = 0x45B0E1;
+    private const int WordAttachRetryCount = 3;
+    private const int WordAttachRetryDelayMs = 150;
     private static readonly Regex MultiWhitespaceRegex = new(@"\s+", RegexOptions.Compiled);
 
     private sealed class BiTodoTemplateDefinition
@@ -1157,6 +1160,7 @@ public class WordService
         BiTodoTemplateDefinition? template = null;
         string? templatePath = null;
         string? handoffPath = null;
+        int? hiddenWordProcessId = null;
         var handoffSucceeded = false;
         var hasWrittenAnyBlock = false;
         var lifecycle = BeginWordLifecycleOperation(nameof(CollectBiTodoDocument), documentTitle, bookmarkName);
@@ -1164,7 +1168,10 @@ public class WordService
         try
         {
             var setupStopwatch = Stopwatch.StartNew();
-            app = CreateDedicatedHiddenWordApplication(lifecycle);
+            var hiddenHandle = CreateDedicatedHiddenWordApplication(lifecycle);
+            app = hiddenHandle.App;
+            hiddenWordProcessId = hiddenHandle.ProcessId;
+            LogWordLifecycle(lifecycle, $"CollectBiTodoDocument: Hidden-BI-PID erkannt. Pid={FormatOptional(hiddenWordProcessId)}.");
             LogWordLifecycleAppState(app, lifecycle, "AfterCreateDedicatedHiddenWordApplication", wasCreatedHere: true);
             templatePath = ExtractEmbeddedBiTodoTemplateToTempFile();
             templateDoc = OpenReadOnlyHiddenDocument(app, templatePath, lifecycle);
@@ -1310,6 +1317,7 @@ public class WordService
 
                 TryQuitWordApplication(app, "Word: Dedizierte versteckte BI-Instanz nach Handoff beendet.");
                 LogWordLifecycle(lifecycle, "CollectBiTodoDocument: Hidden-BI-Instanz beendet.");
+                WaitForWordProcessExit(hiddenWordProcessId, BiTodoHiddenQuitWaitTimeout, lifecycle);
                 SafeReleaseCom(app);
                 app = null;
 
@@ -1399,52 +1407,71 @@ public class WordService
 
     private static WordApplicationHandle CreateOrAttachWordApplication(WordLifecycleOperationContext? context = null)
     {
-        try
+        for (var attempt = 1; attempt <= WordAttachRetryCount; attempt++)
         {
-            var clsid = new Guid("000209FF-0000-0000-C000-000000000046");
-            NativeMethods.GetActiveObject(ref clsid, IntPtr.Zero, out var runningApp);
-            if (runningApp is not null)
+            try
             {
-                try
+                var clsid = new Guid("000209FF-0000-0000-C000-000000000046");
+                NativeMethods.GetActiveObject(ref clsid, IntPtr.Zero, out var runningApp);
+                if (runningApp is not null)
                 {
-                    if (ShouldRejectAttachedWordApplication(runningApp, context, out var rejectionReason))
+                    try
                     {
-                        LogWordLifecycle(context, $"CreateOrAttach: Attach an versteckte/zombiehafte Instanz verworfen. Reason='{SanitizeForLog(rejectionReason)}'.");
-                        AppLogger.Warn($"Word: Versteckte oder zombiehafte Word-Instanz beim Attach verworfen ({rejectionReason}).");
-                        if (Marshal.IsComObject(runningApp))
+                        if (ShouldRejectAttachedWordApplication(runningApp, context, out var rejectionReason))
+                        {
+                            LogWordLifecycle(context, $"CreateOrAttach: Attach an versteckte/zombiehafte Instanz verworfen. Reason='{SanitizeForLog(rejectionReason)}'.");
+                            AppLogger.Warn($"Word: Versteckte oder zombiehafte Word-Instanz beim Attach verworfen ({rejectionReason}).");
+                            if (Marshal.IsComObject(runningApp))
+                            {
+                                Marshal.ReleaseComObject(runningApp);
+                            }
+
+                            runningApp = null;
+                        }
+
+                        if (runningApp is null)
+                        {
+                            LogWordLifecycle(context, "CreateOrAttach: Verworfenes ROT-Objekt, stattdessen neue Word-Instanz.");
+                            throw new COMException("Versteckte/zombiehafte Word-Instanz verworfen.", unchecked((int)0x800401E3));
+                        }
+
+                        var unsavedDocumentCount = CountUnsavedDocuments(runningApp);
+                        LogWordLifecycle(context, $"CreateOrAttach: Bestehende Word-Instanz gefunden. InitialUnsaved={unsavedDocumentCount}.");
+                        AppLogger.Info($"Word: An bestehende Instanz angehaengt. Ungespeicherte Dokumente davor={unsavedDocumentCount}.");
+                        return new WordApplicationHandle(runningApp, false, unsavedDocumentCount, TryGetWordApplicationProcessId(runningApp));
+                    }
+                    catch
+                    {
+                        if (runningApp is not null && Marshal.IsComObject(runningApp))
                         {
                             Marshal.ReleaseComObject(runningApp);
                         }
 
-                        runningApp = null;
+                        throw;
                     }
-
-                    if (runningApp is null)
-                    {
-                        LogWordLifecycle(context, "CreateOrAttach: Verworfenes ROT-Objekt, stattdessen neue Word-Instanz.");
-                        throw new COMException("Versteckte/zombiehafte Word-Instanz verworfen.", unchecked((int)0x800401E3));
-                    }
-
-                    var unsavedDocumentCount = CountUnsavedDocuments(runningApp);
-                    LogWordLifecycle(context, $"CreateOrAttach: Bestehende Word-Instanz gefunden. InitialUnsaved={unsavedDocumentCount}.");
-                    AppLogger.Info($"Word: An bestehende Instanz angehaengt. Ungespeicherte Dokumente davor={unsavedDocumentCount}.");
-                    return new WordApplicationHandle(runningApp, false, unsavedDocumentCount);
-                }
-                catch
-                {
-                    if (runningApp is not null && Marshal.IsComObject(runningApp))
-                    {
-                        Marshal.ReleaseComObject(runningApp);
-                    }
-
-                    throw;
                 }
             }
-        }
-        catch (COMException ex) when ((uint)ex.HResult == 0x800401E3)
-        {
-            // Keine laufende Word-Instanz; neue Instanz wird erstellt.
-            LogWordLifecycle(context, "CreateOrAttach: Keine laufende Word-Instanz in ROT gefunden, neue Instanz wird erstellt.");
+            catch (COMException ex) when ((uint)ex.HResult == 0x800401E3)
+            {
+                LogWordLifecycle(context, "CreateOrAttach: Keine laufende Word-Instanz in ROT gefunden, neue Instanz wird erstellt.");
+                break;
+            }
+            catch (COMException ex) when (IsTransientWordAttachRpcFailure((uint)ex.HResult))
+            {
+                var isLastAttempt = attempt == WordAttachRetryCount;
+                LogWordLifecycle(
+                    context,
+                    $"CreateOrAttach: Transienter ROT-/RPC-Fehler beim Attach. Attempt={attempt}/{WordAttachRetryCount}, HResult=0x{(uint)ex.HResult:X8}, Message='{SanitizeForLog(ex.Message)}'.");
+
+                if (isLastAttempt)
+                {
+                    AppLogger.Warn($"Word: ROT-/RPC-Fehler beim Attach bleibt bestehen (HRESULT=0x{(uint)ex.HResult:X8}). Neue Instanz wird als Fallback gestartet.");
+                    break;
+                }
+
+                AppLogger.Warn($"Word: Transienter ROT-/RPC-Fehler beim Attach (HRESULT=0x{(uint)ex.HResult:X8}), neuer Versuch in {WordAttachRetryDelayMs} ms.");
+                Thread.Sleep(WordAttachRetryDelayMs);
+            }
         }
 
         var wordType = Type.GetTypeFromProgID("Word.Application");
@@ -1460,9 +1487,17 @@ public class WordService
         }
 
         var createdUnsavedDocumentCount = CountUnsavedDocuments(app);
-        LogWordLifecycle(context, $"CreateOrAttach: Neue Word-Instanz erstellt. InitialUnsavedObserved={createdUnsavedDocumentCount}.");
+        var createdProcessId = TryGetWordApplicationProcessId(app);
+        LogWordLifecycle(context, $"CreateOrAttach: Neue Word-Instanz erstellt. InitialUnsavedObserved={createdUnsavedDocumentCount}, Pid={FormatOptional(createdProcessId)}.");
         AppLogger.Info($"Word: Neue Instanz gestartet. Ungespeicherte Dokumente initial={createdUnsavedDocumentCount}.");
-        return new WordApplicationHandle(app, true, 0);
+        return new WordApplicationHandle(app, true, 0, createdProcessId);
+    }
+
+    private static bool IsTransientWordAttachRpcFailure(uint hresult)
+    {
+        return hresult == 0x800706BEu ||
+               hresult == 0x800706BAu ||
+               hresult == 0x80010108u;
     }
 
     private static bool ShouldRejectAttachedWordApplication(object app, WordLifecycleOperationContext? context, out string reason)
@@ -1556,8 +1591,11 @@ public class WordService
         }
     }
 
-    private static dynamic CreateDedicatedHiddenWordApplication(WordLifecycleOperationContext? context = null)
+    private static WordApplicationHandle CreateDedicatedHiddenWordApplication(WordLifecycleOperationContext? context = null)
     {
+        var existingProcessIds = SnapshotRunningWordProcesses()
+            .Select(static process => process.ProcessId)
+            .ToHashSet();
         var wordType = Type.GetTypeFromProgID("Word.Application");
         if (wordType is null)
         {
@@ -1586,9 +1624,20 @@ public class WordService
         {
         }
 
+        var createdProcessId = TryGetWordApplicationProcessId(app);
+        if (!createdProcessId.HasValue)
+        {
+            createdProcessId = SnapshotRunningWordProcesses()
+                .Where(process => !existingProcessIds.Contains(process.ProcessId))
+                .OrderByDescending(process => process.StartTimeUtc ?? DateTime.MinValue)
+                .Select(static process => (int?)process.ProcessId)
+                .FirstOrDefault();
+        }
+
+        LogWordLifecycle(context, $"CreateDedicatedHiddenWordApplication: Hidden-PID={FormatOptional(createdProcessId)}.");
         LogWordLifecycle(context, "CreateDedicatedHiddenWordApplication: Dedizierte versteckte BI-Instanz erstellt.");
         AppLogger.Info("Word: Dedizierte versteckte Instanz für BI: To-dos gestartet.");
-        return app;
+        return new WordApplicationHandle(app, true, 0, createdProcessId);
     }
 
     private static dynamic OpenReadOnlyHiddenDocument(dynamic app, string docPath, WordLifecycleOperationContext? context = null)
@@ -2882,6 +2931,78 @@ public class WordService
         }
     }
 
+    private static bool WaitForWordProcessExit(int? processId, TimeSpan timeout, WordLifecycleOperationContext? context = null)
+    {
+        if (!processId.HasValue || processId.Value <= 0)
+        {
+            LogWordLifecycle(context, "WaitForWordProcessExit: Hidden-PID unbekannt, Wait wird übersprungen.");
+            return false;
+        }
+
+        var stopwatch = Stopwatch.StartNew();
+        try
+        {
+            using var process = Process.GetProcessById(processId.Value);
+            LogWordLifecycle(
+                context,
+                $"WaitForWordProcessExit: Warte auf Hidden-PID {processId.Value} mit Timeout='{timeout}'.");
+
+            if (process.HasExited)
+            {
+                stopwatch.Stop();
+                LogWordLifecycle(
+                    context,
+                    $"WaitForWordProcessExit: Hidden-PID {processId.Value} war bereits beendet. Elapsed={stopwatch.ElapsedMilliseconds} ms.");
+                AppLogger.Info($"Word: Hidden-BI-PID {processId.Value} war bereits beendet.");
+                return true;
+            }
+
+            var exited = process.WaitForExit((int)Math.Ceiling(timeout.TotalMilliseconds));
+            stopwatch.Stop();
+            if (exited)
+            {
+                LogWordLifecycle(
+                    context,
+                    $"WaitForWordProcessExit: Hidden-PID {processId.Value} beendet in {stopwatch.ElapsedMilliseconds} ms.");
+                AppLogger.Info($"Word: Hidden-BI-PID {processId.Value} beendet in {stopwatch.ElapsedMilliseconds} ms.");
+                return true;
+            }
+
+            LogWordLifecycle(
+                context,
+                $"WaitForWordProcessExit: Timeout beim Warten auf Hidden-PID {processId.Value} nach {stopwatch.ElapsedMilliseconds} ms.");
+            AppLogger.Warn($"Word: Hidden-BI-PID {processId.Value} wurde innerhalb von {timeout.TotalSeconds:0.#} s nicht beendet.");
+            return false;
+        }
+        catch (ArgumentException)
+        {
+            stopwatch.Stop();
+            LogWordLifecycle(
+                context,
+                $"WaitForWordProcessExit: Hidden-PID {processId.Value} beim Warten nicht mehr auffindbar. Elapsed={stopwatch.ElapsedMilliseconds} ms.");
+            AppLogger.Info($"Word: Hidden-BI-PID {processId.Value} ist bereits beendet.");
+            return true;
+        }
+        catch (InvalidOperationException)
+        {
+            stopwatch.Stop();
+            LogWordLifecycle(
+                context,
+                $"WaitForWordProcessExit: Hidden-PID {processId.Value} war beim Warten bereits beendet. Elapsed={stopwatch.ElapsedMilliseconds} ms.");
+            AppLogger.Info($"Word: Hidden-BI-PID {processId.Value} ist bereits beendet.");
+            return true;
+        }
+        catch (Exception ex)
+        {
+            stopwatch.Stop();
+            LogWordLifecycle(
+                context,
+                $"WaitForWordProcessExit: Fehler beim Warten auf Hidden-PID {processId.Value}. Type='{SanitizeForLog(ex.GetType().Name)}', Message='{SanitizeForLog(ex.Message)}'.");
+            AppLogger.Warn($"Word: Auf Hidden-BI-PID {processId.Value} konnte nicht gewartet werden: {ex.Message}");
+            return false;
+        }
+    }
+
     private static void TryCloseDocument(dynamic? doc)
     {
         if (doc is null)
@@ -3588,15 +3709,17 @@ public class WordService
 
     private sealed class WordApplicationHandle
     {
-        public WordApplicationHandle(dynamic app, bool wasCreatedHere, int initialUnsavedDocumentCount)
+        public WordApplicationHandle(dynamic app, bool wasCreatedHere, int initialUnsavedDocumentCount, int? processId = null)
         {
             App = app;
             WasCreatedHere = wasCreatedHere;
             InitialUnsavedDocumentCount = initialUnsavedDocumentCount;
+            ProcessId = processId;
         }
 
         public dynamic App { get; }
         public bool WasCreatedHere { get; }
         public int InitialUnsavedDocumentCount { get; }
+        public int? ProcessId { get; }
     }
 }
