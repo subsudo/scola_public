@@ -637,7 +637,7 @@ public partial class MainWindow : Window
             return;
         }
 
-        CollapseToggleButton.Content = _isWindowCollapsed ? "▼" : "▲";
+        CollapseToggleButton.Content = _isWindowCollapsed ? "⌄" : "⌃";
         CollapseToggleButton.ToolTip = _isWindowCollapsed ? "Ausklappen" : "Einklappen";
         CollapseToggleButton.SetResourceReference(Control.BackgroundProperty, "Brush.PanelBg");
         CollapseToggleButton.SetResourceReference(Control.BorderBrushProperty, "Brush.Border");
@@ -680,11 +680,11 @@ public partial class MainWindow : Window
 
     private double GetExpandedWindowHeightTarget()
     {
-        var target = Math.Max(_preferredExpandedWindowHeight, CalculateCompactWindowHeight());
+        var target = CalculateCompactWindowHeight();
         if (ResultsContainer.Visibility == Visibility.Visible)
         {
             target = Math.Max(
-                Math.Max(target, _expandedWindowMinHeight),
+                Math.Max(Math.Max(target, _preferredExpandedWindowHeight), _expandedWindowMinHeight),
                 CalculateCompactWindowHeight() + CalculateResultsWindowAllowance());
         }
 

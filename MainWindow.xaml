@@ -1061,7 +1061,7 @@
                     <Button x:Name="CollapseToggleButton"
                             Style="{StaticResource TitleBarButtonStyle}"
                             Click="CollapseToggleButton_OnClick"
-                            Content="▲"
+                            Content="⌃"
                             FontSize="10"
                             FontWeight="Bold"
                             ToolTip="Einklappen" />
