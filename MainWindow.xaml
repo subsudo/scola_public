@@ -806,20 +806,6 @@
                                     Margin="{DynamicResource Density.NotFoundHintMargin}">
                             <TextBlock Foreground="{DynamicResource Brush.SecondaryText}"
                                        FontSize="{DynamicResource Density.SecondaryFontSize}"
-                                       Text="{Binding AbsenceStatusText}">
-                                <TextBlock.Style>
-                                    <Style TargetType="TextBlock">
-                                        <Setter Property="Visibility" Value="Collapsed" />
-                                        <Style.Triggers>
-                                            <DataTrigger Binding="{Binding ShowAbsenceStatus}" Value="True">
-                                                <Setter Property="Visibility" Value="Visible" />
-                                            </DataTrigger>
-                                        </Style.Triggers>
-                                    </Style>
-                                </TextBlock.Style>
-                            </TextBlock>
-                            <TextBlock Foreground="{DynamicResource Brush.SecondaryText}"
-                                       FontSize="{DynamicResource Density.SecondaryFontSize}"
                                        Text="{Binding Initials}">
                                 <TextBlock.Style>
                                     <Style TargetType="TextBlock">

@@ -2575,7 +2575,7 @@ public partial class MainWindow : Window
         var height = Math.Min(Math.Max(1, requestedHeight), workArea.Height);
         var left = workArea.Left + Math.Max(0, (workArea.Width - width) / 2.0);
         var freeVerticalSpace = Math.Max(0, workArea.Height - height);
-        var top = workArea.Top + (freeVerticalSpace * 0.38);
+        var top = workArea.Top + (freeVerticalSpace * 0.20);
         return new Rect(left, top, width, height);
     }
 
