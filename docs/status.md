@@ -31,6 +31,7 @@ Stand dieser Zusammenfassung: 2026-03-17
 - Word-Leak-/Lock-Absicherungen
 - Hauptfenster startet deterministisch zentriert auf dem primaeren Monitor; Groesse, Maximiert-Zustand und eingeklappter Header-only-Zustand werden gemerkt
 - Teilnehmerkarten bleiben immer in einer einzigen Wide-Struktur; Buttons rutschen nicht mehr unter die Namen und die Fensterbreite hat dafuer eine dynamische Mindestbreite mit leicht vergroesserter Sicherheitsreserve
+- Kürzel unter dem Namen sind jetzt feste Bestandteile der Teilnehmerkarten und nicht mehr als Option abschaltbar
 - der fruehere Maximieren-Button ist durch einen Collapse-Toggle ersetzt; die App kann auf die reine Header-Leiste einklappen und spaeter weich wieder ausfahren
 - Word-Fenster werden nur noch geöffnet/fokussiert; Größe und Position verwaltet Word selbst
 - die alten Word-Placement-Optionen sind aus den Einstellungen entfernt; Scola bietet dafuer bewusst keine eigene Monitor-/Maximierungssteuerung mehr an

@@ -194,6 +194,7 @@ Aktuelle Regel:
 - Scola vergroessert die effektive Mindestbreite bei Bedarf, verkleinert die Fensterbreite aber nie automatisch
 - eine vom User bewusst groesser gewaehlte Fensterbreite bleibt erhalten
 - `AutoFit` ist entfernt; Doppelklick in der Titelleiste und der neue Header-Button toggeln stattdessen den Header-only-Collapse-Modus
+- Kürzel unter dem Namen bleiben dauerhaft sichtbar und sind nicht mehr als Ansichtseinstellung abschaltbar
 
 Begruendung:
 - verhindert strukturell, dass Buttons unter die Namen rutschen

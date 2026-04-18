@@ -425,9 +425,6 @@
                                                  IsChecked="{Binding IsCompactDensity, Mode=TwoWay}" />
                                 </UniformGrid>
                             </Border>
-                            <CheckBox Style="{StaticResource SettingsCheckBoxStyle}"
-                                      Content="Kürzel unter dem Namen anzeigen"
-                                      IsChecked="{Binding ShowParticipantInitials, Mode=TwoWay}" />
                         </StackPanel>
                     </Border>
 
@@ -460,9 +457,9 @@
 
                 <Border Grid.Column="2" Style="{StaticResource SectionCardStyle}">
                     <StackPanel>
-                        <TextBlock Style="{StaticResource SectionTitleStyle}" Text="Aktionen &amp; Word" />
-                        <TextBlock Style="{StaticResource SectionSubTitleStyle}" Text="Buttons, Word und Hilfsfunktionen" />
-                        <UniformGrid Columns="4" Margin="0,0,0,8">
+                        <TextBlock Style="{StaticResource SectionTitleStyle}" Text="Aktionen" />
+                        <TextBlock Style="{StaticResource SectionSubTitleStyle}" Text="Buttons und Hilfsfunktionen" />
+                        <UniformGrid Columns="3" Margin="0,0,0,8">
                             <CheckBox Style="{StaticResource ActionCheckBoxStyle}" Content="Odoo" IsChecked="{Binding ShowBtnOdoo, Mode=TwoWay}" />
                             <CheckBox Style="{StaticResource ActionCheckBoxStyle}" Content="Ordner" IsChecked="{Binding ShowBtnOrdner, Mode=TwoWay}" />
                             <CheckBox Style="{StaticResource ActionCheckBoxStyle}" Content="Akte" IsChecked="{Binding ShowBtnAkte, Mode=TwoWay}" />
@@ -471,6 +468,7 @@
                             <CheckBox Style="{StaticResource ActionCheckBoxStyle}" Content="BI" IsChecked="{Binding ShowBtnBi, Mode=TwoWay}" />
                             <CheckBox Style="{StaticResource ActionCheckBoxStyle}" Content="Eintrag BU" IsChecked="{Binding ShowBtnEintrag, Mode=TwoWay}" />
                             <CheckBox Style="{StaticResource ActionCheckBoxStyle}" Content="Eintrag BI" IsChecked="{Binding ShowBtnEintragBi, Mode=TwoWay}" />
+                            <Border Background="Transparent" />
                         </UniformGrid>
 
                         <TextBlock Margin="0,2,0,6"

@@ -17,7 +17,6 @@ public sealed class SettingsWindowModel
     public bool UseTertiaryServerPath { get; set; }
     public string TertiaryServerPath { get; set; } = string.Empty;
     public string ScheduleRootPath { get; set; } = string.Empty;
-    public bool ShowParticipantInitials { get; set; }
     public bool ShowBtnOdoo { get; set; }
     public bool ShowBtnOrdner { get; set; }
     public bool ShowBtnAkte { get; set; }
@@ -42,7 +41,6 @@ public sealed class SettingsWindowResult
     public bool UseTertiaryServerPath { get; set; }
     public string TertiaryServerPath { get; set; } = string.Empty;
     public string ScheduleRootPath { get; set; } = string.Empty;
-    public bool ShowParticipantInitials { get; set; }
     public bool ShowBtnOdoo { get; set; }
     public bool ShowBtnOrdner { get; set; }
     public bool ShowBtnAkte { get; set; }
@@ -73,7 +71,6 @@ public partial class SettingsWindow : Window, INotifyPropertyChanged
     private bool _useTertiaryServerPath;
     private string _tertiaryServerPath = string.Empty;
     private string _scheduleRootPath = string.Empty;
-    private bool _showParticipantInitials;
     private bool _showBtnOdoo;
     private bool _showBtnOrdner;
     private bool _showBtnAkte;
@@ -128,12 +125,6 @@ public partial class SettingsWindow : Window, INotifyPropertyChanged
     {
         get => _scheduleRootPath;
         set => SetField(ref _scheduleRootPath, value);
-    }
-
-    public bool ShowParticipantInitials
-    {
-        get => _showParticipantInitials;
-        set => SetField(ref _showParticipantInitials, value);
     }
 
     public bool ShowBtnOdoo
@@ -388,7 +379,6 @@ public partial class SettingsWindow : Window, INotifyPropertyChanged
         UseTertiaryServerPath = model.UseTertiaryServerPath;
         TertiaryServerPath = model.TertiaryServerPath;
         ScheduleRootPath = normalizedModel.ScheduleRootPath;
-        ShowParticipantInitials = model.ShowParticipantInitials;
         ShowBtnOdoo = model.ShowBtnOdoo;
         ShowBtnOrdner = model.ShowBtnOrdner;
         ShowBtnAkte = model.ShowBtnAkte;
@@ -443,7 +433,6 @@ public partial class SettingsWindow : Window, INotifyPropertyChanged
             UseTertiaryServerPath = source.UseTertiaryServerPath,
             TertiaryServerPath = NormalizePath(source.TertiaryServerPath),
             ScheduleRootPath = NormalizePath(source.ScheduleRootPath),
-            ShowParticipantInitials = source.ShowParticipantInitials,
             ShowBtnOdoo = source.ShowBtnOdoo,
             ShowBtnOrdner = source.ShowBtnOrdner,
             ShowBtnAkte = source.ShowBtnAkte,
@@ -495,7 +484,6 @@ public partial class SettingsWindow : Window, INotifyPropertyChanged
             UseTertiaryServerPath = UseTertiaryServerPath,
             TertiaryServerPath = NormalizePath(TertiaryServerPath),
             ScheduleRootPath = NormalizePath(ScheduleRootPath),
-            ShowParticipantInitials = ShowParticipantInitials,
             ShowBtnOdoo = ShowBtnOdoo,
 
             ShowBtnOrdner = ShowBtnOrdner,
@@ -522,7 +510,6 @@ public partial class SettingsWindow : Window, INotifyPropertyChanged
                && left.UseTertiaryServerPath == right.UseTertiaryServerPath
                && string.Equals(NormalizePath(left.TertiaryServerPath), NormalizePath(right.TertiaryServerPath), StringComparison.OrdinalIgnoreCase)
                && string.Equals(NormalizePath(left.ScheduleRootPath), NormalizePath(right.ScheduleRootPath), StringComparison.OrdinalIgnoreCase)
-               && left.ShowParticipantInitials == right.ShowParticipantInitials
                && left.ShowBtnOdoo == right.ShowBtnOdoo
                && left.ShowBtnOrdner == right.ShowBtnOrdner
                && left.ShowBtnAkte == right.ShowBtnAkte
@@ -707,7 +694,6 @@ public partial class SettingsWindow : Window, INotifyPropertyChanged
             UseTertiaryServerPath = UseTertiaryServerPath,
             TertiaryServerPath = NormalizePath(TertiaryServerPath),
             ScheduleRootPath = NormalizePath(ScheduleRootPath),
-            ShowParticipantInitials = ShowParticipantInitials,
             ShowBtnOdoo = ShowBtnOdoo,
 
             ShowBtnOrdner = ShowBtnOrdner,

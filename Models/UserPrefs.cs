@@ -2,7 +2,6 @@ namespace VerlaufsakteApp.Models;
 
 public class UserPrefs
 {
-    public bool ShowParticipantInitials { get; set; } = true;
     public bool ShowBtnOdoo { get; set; } = false;
     public bool ShowBtnOrdner { get; set; } = true;
     public bool ShowBtnAkte { get; set; } = true;

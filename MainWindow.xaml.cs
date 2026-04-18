@@ -16,6 +16,7 @@ using System.Windows.Media;
 using System.Windows.Media.Animation;
 using System.Windows.Media.Effects;
 using System.Windows.Threading;
+using System.Diagnostics.CodeAnalysis;
 using VerlaufsakteApp.Models;
 using VerlaufsakteApp.Services;
 
@@ -54,6 +55,7 @@ public partial class MainWindow : Window
 
     private const double MinExpandedInputHeight = 190;
     private const double MaxExpandedInputHeight = 340;
+    private const double DefaultStartupInputHeight = 250;
     private const double InputHeightScaleFactor = 1.2;
     private const double LeftNamePrefixWidth = 44;
     private const double WideLayoutContainerPaddingWidth = 36;
@@ -77,7 +79,7 @@ public partial class MainWindow : Window
     private readonly AppUpdateService _appUpdateService;
     private readonly Dictionary<Participant, Border> _miniScheduleTrayHosts = new();
     private bool _isInputCollapsed;
-    private double _expandedInputHeight = 250;
+    private double _expandedInputHeight = DefaultStartupInputHeight;
     private string _lastActionText = "Bereit";
     private bool _isBatchCollapsed = true;
     private bool _isBiTodoCollapsed = true;
@@ -213,7 +215,7 @@ public partial class MainWindow : Window
         BatchResults.CollectionChanged += BatchResults_OnCollectionChanged;
         BiTodoResults.CollectionChanged += BiTodoResults_OnCollectionChanged;
 
-        ShowParticipantInitials = App.UserPrefs.ShowParticipantInitials;
+        ShowParticipantInitials = true;
         ShowBtnOdoo = App.UserPrefs.ShowBtnOdoo;
         ShowBtnOrdner = App.UserPrefs.ShowBtnOrdner;
         ShowBtnAkte = App.UserPrefs.ShowBtnAkte;
@@ -373,6 +375,7 @@ public partial class MainWindow : Window
 
     private async void MainWindow_OnLoaded(object sender, RoutedEventArgs e)
     {
+        StatusBarVersion.Text = ApplicationVersionText;
         RequestDynamicMinWidthRefresh();
 
         if (_startupUpdateCheckStarted)
@@ -1186,9 +1189,13 @@ public partial class MainWindow : Window
 
     private void UpdateExpandedInputHeight()
     {
-        var referenceHeight = ResultsContainer.Visibility == Visibility.Visible
-            ? ActualHeight
-            : Math.Max(_preferredExpandedWindowHeight, ActualHeight);
+        if (ResultsContainer.Visibility != Visibility.Visible)
+        {
+            _expandedInputHeight = DefaultStartupInputHeight;
+            return;
+        }
+
+        var referenceHeight = Math.Max(_preferredExpandedWindowHeight, ActualHeight);
         var desired = referenceHeight * 0.32 * InputHeightScaleFactor;
         _expandedInputHeight = Math.Clamp(desired, MinExpandedInputHeight, MaxExpandedInputHeight);
     }
@@ -1437,7 +1444,6 @@ public partial class MainWindow : Window
             UseTertiaryServerPath = _config.UseTertiaryServerBasePath,
             TertiaryServerPath = _config.TertiaryServerBasePath,
             ScheduleRootPath = _config.ScheduleRootPath,
-            ShowParticipantInitials = ShowParticipantInitials,
             ShowBtnOdoo = ShowBtnOdoo,
             ShowBtnOrdner = ShowBtnOrdner,
             ShowBtnAkte = ShowBtnAkte,
@@ -1485,7 +1491,7 @@ public partial class MainWindow : Window
             _ = EnsureCurrentWeekScheduleLoadedAsync("SettingsChanged");
         }
 
-        ShowParticipantInitials = result.ShowParticipantInitials;
+        ShowParticipantInitials = true;
         ShowBtnOdoo = result.ShowBtnOdoo;
         ShowBtnOrdner = result.ShowBtnOrdner;
         ShowBtnAkte = result.ShowBtnAkte;
@@ -1497,7 +1503,6 @@ public partial class MainWindow : Window
         IsDarkTheme = result.IsDarkTheme;
         ApplyDisplayDensity(result.DisplayDensity);
 
-        App.UserPrefs.ShowParticipantInitials = ShowParticipantInitials;
         App.UserPrefs.ShowBtnOdoo = ShowBtnOdoo;
         App.UserPrefs.ShowBtnOrdner = ShowBtnOrdner;
         App.UserPrefs.ShowBtnAkte = ShowBtnAkte;
@@ -3482,6 +3487,26 @@ public partial class MainWindow : Window
     {
         var assembly = Assembly.GetExecutingAssembly();
         var productName = assembly.GetName().Name ?? "Scola";
+        var informationalVersion = assembly
+            .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?
+            .InformationalVersion;
+        if (!string.IsNullOrWhiteSpace(informationalVersion))
+        {
+            var normalizedInformationalVersion = informationalVersion.Split('+')[0].Trim();
+            if (!string.IsNullOrWhiteSpace(normalizedInformationalVersion))
+            {
+                return $"{productName} {normalizedInformationalVersion}";
+            }
+        }
+
+        var fileVersion = assembly
+            .GetCustomAttribute<AssemblyFileVersionAttribute>()?
+            .Version;
+        if (!string.IsNullOrWhiteSpace(fileVersion))
+        {
+            return $"{productName} {fileVersion.Trim()}";
+        }
+
         var version = assembly.GetName().Version;
         if (version is null)
         {
