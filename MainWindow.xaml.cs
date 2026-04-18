@@ -637,10 +637,11 @@ public partial class MainWindow : Window
             return;
         }
 
-        CollapseToggleButton.Content = _isWindowCollapsed ? "⌄" : "⌃";
+        CollapseToggleButton.Content = _isWindowCollapsed ? "▼" : "▲";
         CollapseToggleButton.ToolTip = _isWindowCollapsed ? "Ausklappen" : "Einklappen";
         CollapseToggleButton.SetResourceReference(Control.BackgroundProperty, "Brush.PanelBg");
         CollapseToggleButton.SetResourceReference(Control.BorderBrushProperty, "Brush.Border");
+        CollapseToggleButton.SetResourceReference(Control.ForegroundProperty, "Brush.SecondaryText");
     }
 
     private void SyncBodyHeightToWindow()
@@ -2569,11 +2570,12 @@ public partial class MainWindow : Window
 
     private static Rect CreateCenteredWindowRectOnPrimaryMonitor(double requestedWidth, double requestedHeight)
     {
-        var workArea = GetPrimaryRestoreMonitor().WorkArea;
+        var workArea = SystemParameters.WorkArea;
         var width = Math.Min(Math.Max(1, requestedWidth), workArea.Width);
         var height = Math.Min(Math.Max(1, requestedHeight), workArea.Height);
         var left = workArea.Left + Math.Max(0, (workArea.Width - width) / 2.0);
-        var top = workArea.Top + Math.Max(0, (workArea.Height - height) / 2.0);
+        var freeVerticalSpace = Math.Max(0, workArea.Height - height);
+        var top = workArea.Top + (freeVerticalSpace * 0.38);
         return new Rect(left, top, width, height);
     }
 

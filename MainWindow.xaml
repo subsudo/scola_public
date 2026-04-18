@@ -1061,9 +1061,10 @@
                     <Button x:Name="CollapseToggleButton"
                             Style="{StaticResource TitleBarButtonStyle}"
                             Click="CollapseToggleButton_OnClick"
-                            Content="⌃"
-                            FontSize="10"
+                            Content="▲"
+                            FontSize="9"
                             FontWeight="Bold"
+                            Foreground="{DynamicResource Brush.SecondaryText}"
                             ToolTip="Einklappen" />
                     <Button Style="{StaticResource WindowControlButtonStyle}"
                             Click="CloseButton_OnClick"
