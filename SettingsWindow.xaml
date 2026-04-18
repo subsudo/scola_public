@@ -471,11 +471,6 @@
                             <Border Background="Transparent" />
                         </UniformGrid>
 
-                        <TextBlock Margin="0,2,0,6"
-                                   Foreground="{DynamicResource Brush.SecondaryText}"
-                                   FontSize="11"
-                                   Text="Word verwaltet Fenstergröße und -position selbst." />
-
                         <Button Width="150"
                                 HorizontalAlignment="Left"
                                 Style="{StaticResource SecondaryButtonStyle}"
