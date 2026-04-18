@@ -57,11 +57,12 @@ public partial class MainWindow : Window
     private const double InputHeightScaleFactor = 1.2;
     private const double LeftNamePrefixWidth = 44;
     private const double WideLayoutContainerPaddingWidth = 36;
-    private const double WideLayoutSafetyWidth = 6;
+    private const double WideLayoutSafetyWidth = 12;
     private const double TitleBarHeight = 36;
     private const double StatusBarHeight = 24;
     private const double OuterBorderHeight = 2;
     private const double MinResultsWindowHeightAllowance = 120;
+    private const double CollapseAnimationDurationMilliseconds = 170;
     private static readonly TimeSpan WeeklyScheduleRetryInterval = TimeSpan.FromMinutes(3);
     private static readonly string ApplicationVersionText = BuildApplicationVersionText();
 
@@ -87,8 +88,13 @@ public partial class MainWindow : Window
     private bool _isBiTodoRunning;
     private bool _isWordActionRunning;
     private bool _isEvaluating;
+    private bool _isWindowCollapsed;
+    private bool _isCollapseAnimationRunning;
+    private int _collapseAnimationVersion;
+    private bool _collapseAutoExpandArmed;
     private Participant? _expandedMiniScheduleParticipant;
     private readonly double _expandedWindowMinHeight;
+    private readonly ResizeMode _defaultResizeMode;
     private double _preferredExpandedWindowHeight;
     private DisplayDensityProfile _displayDensityProfile = CreateDisplayDensityProfile(DisplayDensityMode.Standard);
     private bool _startupUpdateCheckStarted;
@@ -170,6 +176,7 @@ public partial class MainWindow : Window
     {
         InitializeComponent();
         _expandedWindowMinHeight = MinHeight;
+        _defaultResizeMode = ResizeMode;
 
         _config = App.Config ?? throw new InvalidOperationException("Konfiguration nicht geladen.");
         _parser = new ParticipantParser(_config.AbsenceValues, _config.PresenceValues);
@@ -219,7 +226,8 @@ public partial class MainWindow : Window
 
         DataContext = this;
         RestoreWindowBoundsFromPrefs();
-        _preferredExpandedWindowHeight = Math.Max(Height, _expandedWindowMinHeight);
+        _preferredExpandedWindowHeight = Height;
+        _isWindowCollapsed = App.UserPrefs.IsCollapsed;
         ApplyDisplayDensity(App.UserPrefs.DisplayDensity);
 
         UpdateExpandedInputHeight();
@@ -229,6 +237,7 @@ public partial class MainWindow : Window
         SetResultsAreaVisible(false);
         EvaluateButton.IsEnabled = false;
         ApplyCompactStartupWindowState();
+        ApplyWindowCollapseState(animated: false);
         StatusBarVersion.Text = ApplicationVersionText;
         Loaded += MainWindow_OnLoaded;
         WordService.TryCleanupBiTodoTempArtifactsOnStartup();
@@ -243,7 +252,7 @@ public partial class MainWindow : Window
             AppLogger.Warn("Microsoft Word nicht gefunden. Stufe 3 deaktiviert.");
         }
 
-        UpdateMaxRestoreButton();
+        UpdateCollapseToggleButton();
         RequestDynamicMinWidthRefresh();
     }
 
@@ -264,18 +273,21 @@ public partial class MainWindow : Window
 
         if (WindowState == WindowState.Normal
             && SizeToContent == SizeToContent.Manual
-            && ResultsContainer.Visibility == Visibility.Visible
-            && Height >= _expandedWindowMinHeight)
+            && !_isWindowCollapsed
+            && !_isCollapseAnimationRunning
+            && Height > GetCollapsedWindowHeight())
         {
             _preferredExpandedWindowHeight = Height;
         }
+
+        SyncBodyHeightToWindow();
     }
 
     private void TitleBar_OnMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
         if (e.ClickCount == 2)
         {
-            ToggleWindowMaximizeRestore();
+            ToggleWindowCollapse();
             return;
         }
 
@@ -305,8 +317,27 @@ public partial class MainWindow : Window
     }
 
     private void MinimizeButton_OnClick(object sender, RoutedEventArgs e) => WindowState = WindowState.Minimized;
-    private void MaxRestoreButton_OnClick(object sender, RoutedEventArgs e) => ToggleWindowMaximizeRestore();
+    private void CollapseToggleButton_OnClick(object sender, RoutedEventArgs e) => ToggleWindowCollapse();
     private void CloseButton_OnClick(object sender, RoutedEventArgs e) => Close();
+
+    private void MainWindow_OnActivated(object? sender, EventArgs e)
+    {
+        if (_collapseAutoExpandArmed
+            && _isWindowCollapsed
+            && WindowState == WindowState.Normal)
+        {
+            _collapseAutoExpandArmed = false;
+            SetWindowCollapsed(false, animated: true);
+        }
+    }
+
+    private void MainWindow_OnDeactivated(object? sender, EventArgs e)
+    {
+        if (_isWindowCollapsed && WindowState == WindowState.Normal)
+        {
+            _collapseAutoExpandArmed = true;
+        }
+    }
 
     private void MainWindow_OnClosing(object? sender, CancelEventArgs e)
     {
@@ -451,26 +482,228 @@ public partial class MainWindow : Window
 
     private void MainWindow_OnStateChanged(object? sender, EventArgs e)
     {
-        UpdateMaxRestoreButton();
+        if (WindowState == WindowState.Maximized && _isWindowCollapsed)
+        {
+            _isWindowCollapsed = false;
+            _collapseAutoExpandArmed = false;
+        }
+
+        ApplyWindowCollapseState(animated: false);
     }
 
-    private void ToggleWindowMaximizeRestore()
+    private void ToggleWindowCollapse()
     {
-        WindowState = WindowState == WindowState.Maximized
-            ? WindowState.Normal
-            : WindowState.Maximized;
-    }
-
-    private void UpdateMaxRestoreButton()
-    {
-        if (MaxRestoreButton is null)
+        if (WindowState == WindowState.Minimized)
         {
             return;
         }
 
-        MaxRestoreButton.ToolTip = WindowState == WindowState.Maximized ? "Wiederherstellen" : "Maximieren";
-        MaxRestoreButton.SetResourceReference(Control.BackgroundProperty, "Brush.PanelBg");
-        MaxRestoreButton.SetResourceReference(Control.BorderBrushProperty, "Brush.Border");
+        SetWindowCollapsed(!_isWindowCollapsed, animated: true);
+    }
+
+    private void SetWindowCollapsed(bool collapsed, bool animated)
+    {
+        if (WindowState == WindowState.Minimized)
+        {
+            return;
+        }
+
+        if (!collapsed && WindowState == WindowState.Maximized)
+        {
+            _isWindowCollapsed = false;
+            ApplyWindowCollapseState(animated: false);
+            return;
+        }
+
+        if (collapsed && WindowState == WindowState.Maximized)
+        {
+            WindowState = WindowState.Normal;
+        }
+
+        if (!collapsed)
+        {
+            _preferredExpandedWindowHeight = Math.Max(GetExpandedWindowHeightTarget(), _expandedWindowMinHeight);
+        }
+
+        _collapseAutoExpandArmed = false;
+        _isWindowCollapsed = collapsed;
+        ApplyWindowCollapseState(animated);
+    }
+
+    private void ApplyWindowCollapseState(bool animated)
+    {
+        UpdateCollapseToggleButton();
+        UpdateMinimumWindowHeightForCurrentContent();
+
+        if (WindowBodyContainer is null)
+        {
+            return;
+        }
+
+        if (WindowState == WindowState.Maximized)
+        {
+            StopCollapseAnimations();
+            _isCollapseAnimationRunning = false;
+            ResizeMode = _defaultResizeMode;
+            SizeToContent = SizeToContent.Manual;
+            WindowBodyContainer.BeginAnimation(FrameworkElement.HeightProperty, null);
+            WindowBodyContainer.Height = double.NaN;
+            return;
+        }
+
+        var targetWindowHeight = _isWindowCollapsed
+            ? GetCollapsedWindowHeight()
+            : GetExpandedWindowHeightTarget();
+        var targetBodyHeight = _isWindowCollapsed
+            ? 0
+            : Math.Max(0, targetWindowHeight - GetCollapsedWindowHeight());
+
+        if (!animated || !IsLoaded)
+        {
+            StopCollapseAnimations();
+            _isCollapseAnimationRunning = false;
+            SizeToContent = SizeToContent.Manual;
+            ResizeMode = _isWindowCollapsed ? ResizeMode.NoResize : _defaultResizeMode;
+            if (WindowState == WindowState.Normal)
+            {
+                Height = targetWindowHeight;
+            }
+
+            WindowBodyContainer.BeginAnimation(FrameworkElement.HeightProperty, null);
+            WindowBodyContainer.Height = targetBodyHeight;
+            return;
+        }
+
+        StopCollapseAnimations();
+        _isCollapseAnimationRunning = true;
+        SizeToContent = SizeToContent.Manual;
+        ResizeMode = _isWindowCollapsed ? ResizeMode.NoResize : _defaultResizeMode;
+
+        var animationVersion = ++_collapseAnimationVersion;
+        var startWindowHeight = Math.Max(ActualHeight, Height);
+        var startBodyHeight = GetCurrentBodyHeight();
+
+        Height = startWindowHeight;
+        WindowBodyContainer.Height = startBodyHeight;
+
+        var easing = new CubicEase { EasingMode = EasingMode.EaseOut };
+        var bodyAnimation = new DoubleAnimation
+        {
+            From = startBodyHeight,
+            To = targetBodyHeight,
+            Duration = TimeSpan.FromMilliseconds(CollapseAnimationDurationMilliseconds),
+            EasingFunction = easing
+        };
+        bodyAnimation.Completed += (_, _) =>
+        {
+            if (animationVersion != _collapseAnimationVersion)
+            {
+                return;
+            }
+
+            _isCollapseAnimationRunning = false;
+            SizeToContent = SizeToContent.Manual;
+            WindowBodyContainer.BeginAnimation(FrameworkElement.HeightProperty, null);
+            WindowBodyContainer.Height = targetBodyHeight;
+            if (WindowState == WindowState.Normal)
+            {
+                Height = targetWindowHeight;
+            }
+        };
+
+        var windowAnimation = new DoubleAnimation
+        {
+            From = startWindowHeight,
+            To = targetWindowHeight,
+            Duration = TimeSpan.FromMilliseconds(CollapseAnimationDurationMilliseconds),
+            EasingFunction = easing
+        };
+
+        WindowBodyContainer.BeginAnimation(FrameworkElement.HeightProperty, bodyAnimation);
+        BeginAnimation(HeightProperty, windowAnimation);
+    }
+
+    private void StopCollapseAnimations()
+    {
+        _collapseAnimationVersion++;
+        BeginAnimation(HeightProperty, null);
+        WindowBodyContainer?.BeginAnimation(FrameworkElement.HeightProperty, null);
+    }
+
+    private void UpdateCollapseToggleButton()
+    {
+        if (CollapseToggleButton is null)
+        {
+            return;
+        }
+
+        CollapseToggleButton.Content = _isWindowCollapsed ? "▼" : "▲";
+        CollapseToggleButton.ToolTip = _isWindowCollapsed ? "Ausklappen" : "Einklappen";
+        CollapseToggleButton.SetResourceReference(Control.BackgroundProperty, "Brush.PanelBg");
+        CollapseToggleButton.SetResourceReference(Control.BorderBrushProperty, "Brush.Border");
+    }
+
+    private void SyncBodyHeightToWindow()
+    {
+        if (WindowBodyContainer is null || _isCollapseAnimationRunning)
+        {
+            return;
+        }
+
+        if (WindowState == WindowState.Maximized)
+        {
+            WindowBodyContainer.BeginAnimation(FrameworkElement.HeightProperty, null);
+            WindowBodyContainer.Height = double.NaN;
+            return;
+        }
+
+        WindowBodyContainer.BeginAnimation(FrameworkElement.HeightProperty, null);
+        WindowBodyContainer.Height = _isWindowCollapsed
+            ? 0
+            : Math.Max(0, Math.Max(ActualHeight, Height) - GetCollapsedWindowHeight());
+    }
+
+    private void UpdateMinimumWindowHeightForCurrentContent()
+    {
+        if (_isWindowCollapsed)
+        {
+            MinHeight = GetCollapsedWindowHeight();
+            return;
+        }
+
+        MinHeight = ResultsContainer.Visibility == Visibility.Visible
+            ? _expandedWindowMinHeight
+            : 0;
+    }
+
+    private double GetCollapsedWindowHeight() => TitleBarHeight + OuterBorderHeight;
+
+    private double GetExpandedWindowHeightTarget()
+    {
+        var target = Math.Max(_preferredExpandedWindowHeight, CalculateCompactWindowHeight());
+        if (ResultsContainer.Visibility == Visibility.Visible)
+        {
+            target = Math.Max(
+                Math.Max(target, _expandedWindowMinHeight),
+                CalculateCompactWindowHeight() + CalculateResultsWindowAllowance());
+        }
+
+        return Math.Ceiling(target);
+    }
+
+    private double GetCurrentBodyHeight()
+    {
+        if (WindowBodyContainer is null)
+        {
+            return 0;
+        }
+
+        if (!double.IsNaN(WindowBodyContainer.Height))
+        {
+            return Math.Max(0, WindowBodyContainer.Height);
+        }
+
+        return Math.Max(0, Math.Max(ActualHeight, Height) - GetCollapsedWindowHeight());
     }
 
     // --- Input area ---
@@ -688,16 +921,18 @@ public partial class MainWindow : Window
 
     private void ApplyCompactStartupWindowState()
     {
-        MinHeight = 0;
+        UpdateMinimumWindowHeightForCurrentContent();
 
         if (WindowState == WindowState.Maximized)
         {
+            SyncBodyHeightToWindow();
             return;
         }
 
         SizeToContent = SizeToContent.Manual;
         UpdateLayout();
         Height = CalculateCompactWindowHeight();
+        SyncBodyHeightToWindow();
     }
 
     private void RequestDynamicMinWidthRefresh()
@@ -749,7 +984,12 @@ public partial class MainWindow : Window
 
     private void ExpandWindowForResults()
     {
-        MinHeight = _expandedWindowMinHeight;
+        if (_isWindowCollapsed)
+        {
+            return;
+        }
+
+        UpdateMinimumWindowHeightForCurrentContent();
         SizeToContent = SizeToContent.Manual;
 
         if (WindowState == WindowState.Maximized)
@@ -768,7 +1008,8 @@ public partial class MainWindow : Window
 
     private void EnsureActionStripsVisibleAfterEvaluate()
     {
-        if (WindowState == WindowState.Maximized
+        if (_isWindowCollapsed
+            || WindowState == WindowState.Maximized
             || ResultsScrollViewer is null
             || BatchStripBorder is null
             || BatchStripBorder.Visibility != Visibility.Visible)
@@ -853,7 +1094,12 @@ public partial class MainWindow : Window
 
     private void ExpandWindowForActionPanel(FrameworkElement panelContainer)
     {
-        MinHeight = _expandedWindowMinHeight;
+        if (_isWindowCollapsed)
+        {
+            return;
+        }
+
+        UpdateMinimumWindowHeightForCurrentContent();
         SizeToContent = SizeToContent.Manual;
 
         if (WindowState == WindowState.Maximized)
@@ -894,6 +1140,7 @@ public partial class MainWindow : Window
     private void SetResultsAreaVisible(bool visible)
     {
         ResultsContainer.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
+        UpdateMinimumWindowHeightForCurrentContent();
 
         if (MainContentGrid.RowDefinitions.Count > 2)
         {
@@ -1083,6 +1330,7 @@ public partial class MainWindow : Window
         }
 
         RequestDynamicMinWidthRefresh();
+        SyncBodyHeightToWindow();
     }
 
     private void SetDensityResource(string key, object value)
@@ -2191,7 +2439,9 @@ public partial class MainWindow : Window
 
     private void ScheduleResultsHeightRefresh(bool allowShrink)
     {
-        if (WindowState == WindowState.Maximized || ResultsContainer.Visibility != Visibility.Visible)
+        if (_isWindowCollapsed
+            || WindowState == WindowState.Maximized
+            || ResultsContainer.Visibility != Visibility.Visible)
         {
             return;
         }
@@ -2241,14 +2491,18 @@ public partial class MainWindow : Window
         var requestedWidth = prefs.WindowWidth is > 0 && prefs.WindowWidth.Value >= MinWidth
             ? prefs.WindowWidth.Value
             : Width;
-        var requestedHeight = prefs.WindowHeight is > 0 && prefs.WindowHeight.Value >= MinHeight
-            ? prefs.WindowHeight.Value
+        var preferredStoredHeight = prefs.ExpandedWindowHeight is > 0
+            ? prefs.ExpandedWindowHeight.Value
+            : prefs.WindowHeight ?? Height;
+        var requestedHeight = preferredStoredHeight > GetCollapsedWindowHeight()
+            ? preferredStoredHeight
             : Height;
         var adjustedRect = CreateCenteredWindowRectOnPrimaryMonitor(requestedWidth, requestedHeight);
         ApplyRestoredWindowBounds(adjustedRect);
-        _preferredExpandedWindowHeight = Math.Max(Height, _expandedWindowMinHeight);
+        _preferredExpandedWindowHeight = Math.Max(requestedHeight, CalculateCompactWindowHeight());
+        _isWindowCollapsed = prefs.IsCollapsed;
 
-        if (prefs.WindowWasMaximized)
+        if (prefs.WindowWasMaximized && !_isWindowCollapsed)
         {
             WindowState = WindowState.Maximized;
         }
@@ -2261,17 +2515,28 @@ public partial class MainWindow : Window
             var bounds = WindowState == WindowState.Normal
                 ? new Rect(Left, Top, Width, Height)
                 : RestoreBounds;
-            var storedHeight = Participants.Count == 0 && ResultsContainer.Visibility != Visibility.Visible
-                ? Math.Max(_preferredExpandedWindowHeight, _expandedWindowMinHeight)
-                : bounds.Height;
+            var storedHeight = Math.Max(_preferredExpandedWindowHeight, _expandedWindowMinHeight);
 
-            if (bounds.Width >= MinWidth && storedHeight >= _expandedWindowMinHeight)
+            if (!_isWindowCollapsed
+                && WindowState == WindowState.Normal
+                && Height > GetCollapsedWindowHeight())
+            {
+                storedHeight = Height;
+            }
+            else if (bounds.Height >= _expandedWindowMinHeight)
+            {
+                storedHeight = Math.Max(storedHeight, bounds.Height);
+            }
+
+            if (bounds.Width >= MinWidth && storedHeight > GetCollapsedWindowHeight())
             {
                 App.UserPrefs.WindowWidth = bounds.Width;
                 App.UserPrefs.WindowHeight = storedHeight;
+                App.UserPrefs.ExpandedWindowHeight = storedHeight;
             }
 
-            App.UserPrefs.WindowWasMaximized = WindowState == WindowState.Maximized;
+            App.UserPrefs.IsCollapsed = _isWindowCollapsed;
+            App.UserPrefs.WindowWasMaximized = WindowState == WindowState.Maximized && !_isWindowCollapsed;
             App.SaveUserPrefs();
         }
         catch (Exception ex)

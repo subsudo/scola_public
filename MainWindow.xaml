@@ -10,6 +10,8 @@
         Title="Scola"
         SizeChanged="MainWindow_OnSizeChanged"
         StateChanged="MainWindow_OnStateChanged"
+        Activated="MainWindow_OnActivated"
+        Deactivated="MainWindow_OnDeactivated"
         Closing="MainWindow_OnClosing"
         Width="520"
         Height="700"
@@ -1056,15 +1058,13 @@
                             Click="MinimizeButton_OnClick"
                             Content="&#xE921;"
                             ToolTip="Minimieren" />
-                    <Button x:Name="MaxRestoreButton"
+                    <Button x:Name="CollapseToggleButton"
                             Style="{StaticResource TitleBarButtonStyle}"
-                            Click="MaxRestoreButton_OnClick"
-                            ToolTip="Maximieren">
-                        <Border Width="10"
-                                Height="10"
-                                BorderBrush="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
-                                BorderThickness="1" />
-                    </Button>
+                            Click="CollapseToggleButton_OnClick"
+                            Content="▲"
+                            FontSize="10"
+                            FontWeight="Bold"
+                            ToolTip="Einklappen" />
                     <Button Style="{StaticResource WindowControlButtonStyle}"
                             Click="CloseButton_OnClick"
                             Content="&#xE8BB;"
@@ -1072,13 +1072,22 @@
                 </StackPanel>
             </Grid>
 
-            <!-- Main Content -->
-            <Grid x:Name="MainContentGrid" Grid.Row="1" Margin="10,10,10,6">
+            <Grid x:Name="WindowBodyContainer"
+                  Grid.Row="1"
+                  VerticalAlignment="Top"
+                  ClipToBounds="True">
                 <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto" />
-                    <RowDefinition Height="Auto" />
                     <RowDefinition Height="*" />
+                    <RowDefinition Height="24" />
                 </Grid.RowDefinitions>
+
+                <!-- Main Content -->
+                <Grid x:Name="MainContentGrid" Grid.Row="0" Margin="10,10,10,6">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
 
                 <!-- Collapsed Strip -->
                 <Border x:Name="CollapsedStrip"
@@ -1438,7 +1447,7 @@
 
             <!-- Status Bar -->
             <Border x:Name="StatusBarContainer"
-                    Grid.Row="2"
+                    Grid.Row="1"
                     Background="{DynamicResource Brush.StatusBarBg}"
                     BorderBrush="{DynamicResource Brush.Border}"
                     BorderThickness="0,1,0,0"
@@ -1466,6 +1475,7 @@
                                Text="Bereit" />
                 </DockPanel>
             </Border>
+            </Grid>
 
             <!-- Toast Notification Overlay -->
             <ItemsControl x:Name="ToastContainer"

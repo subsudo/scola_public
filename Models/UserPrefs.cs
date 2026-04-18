@@ -19,5 +19,7 @@ public class UserPrefs
     public bool EnableWordLifecycleLogging { get; set; }
     public double? WindowWidth { get; set; }
     public double? WindowHeight { get; set; }
+    public double? ExpandedWindowHeight { get; set; }
     public bool WindowWasMaximized { get; set; }
+    public bool IsCollapsed { get; set; }
 }

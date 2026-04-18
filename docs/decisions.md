@@ -141,11 +141,11 @@ Begruendung:
 - ist bewusst leichtgewichtig und kein grosses Blocking-Overlay
 
 ## D15 - Hauptfenster merkt keine exakte Position mehr
-Scola speichert fuer das Hauptfenster keine exakten `Left`/`Top`-Koordinaten mehr, sondern nur noch Groesse und Maximiert-Zustand.
+Scola speichert fuer das Hauptfenster keine exakten `Left`/`Top`-Koordinaten mehr, sondern nur noch Groesse sowie die relevanten Fensterzustaende.
 
 Aktuelle Regel:
 - beim Start wird das Hauptfenster immer zentriert auf dem primaeren Monitor geoeffnet
-- `WindowWidth`, `WindowHeight` und `WindowWasMaximized` bleiben erhalten
+- `WindowWidth`, die expandierte Fensterhoehe, `WindowWasMaximized` und `IsCollapsed` bleiben erhalten
 - exakte Fensterposition und gespeicherte Monitor-DeviceNames werden nicht mehr persistiert
 - auf `DisplaySettingsChanged` wird nicht mehr aktiv reagiert
 
@@ -190,14 +190,29 @@ Aktuelle Regel:
 - pro Teilnehmerkarte gibt es nur noch eine Button-Zeile rechts neben dem Namen
 - die Abwesenheitsinfo wird in der unteren Sekundaerzeile der Karte dargestellt, nicht mehr in der Kopfzeile
 - die Fensterbreite bekommt eine dynamische `MinWidth` aus laengstem sichtbaren Namen plus sichtbaren Buttons
+- die `MinWidth` enthaelt eine kleine Sicherheitsreserve, damit Button-Hintergruende lange Namen nicht optisch anschneiden
 - Scola vergroessert die effektive Mindestbreite bei Bedarf, verkleinert die Fensterbreite aber nie automatisch
 - eine vom User bewusst groesser gewaehlte Fensterbreite bleibt erhalten
-- `AutoFit` ist entfernt; Doppelklick in der Titelleiste toggelt nur noch zwischen `Normal` und `Maximized`
+- `AutoFit` ist entfernt; Doppelklick in der Titelleiste und der neue Header-Button toggeln stattdessen den Header-only-Collapse-Modus
 
 Begruendung:
 - verhindert strukturell, dass Buttons unter die Namen rutschen
 - ist alltagsrobuster und leichter vorhersehbar als ein Layout-Switch zwischen Wide und Narrow
 - respektiert die Nutzerpraeferenz fuer eine bewusst breitere Fensteransicht
+
+## D20 - Header-only-Collapse statt eigenem Maximieren
+Scola bietet in der Titelleiste bewusst keinen eigenen Maximieren-Button mehr an, sondern einen Collapse-Toggle fuer einen kompakten Header-only-Modus.
+
+Aktuelle Regel:
+- der Collapse-Toggle klappt den kompletten App-Koerper weich auf die reine Header-Leiste ein und wieder aus
+- Windows-Minimize bleibt unveraendert und wird nicht durch Collapse ersetzt
+- ein eingeklapptes Fenster darf sich bei spaeterer normaler Aktivierung wieder automatisch ausklappen, damit es auf Multi-Monitor-Setups leichter wiedergefunden wird
+- `TopMost` wird dafuer bewusst nicht eingefuehrt
+
+Begruendung:
+- der praktische Bedarf ist eher `aus dem Weg, aber sofort wieder da` als klassisches Maximieren
+- ein Header-only-Modus passt besser zum Werkzeug-Charakter von Scola
+- ohne `TopMost` bleibt das Verhalten alltagstauglich und drängt sich nicht ueber andere Arbeitsfenster
 
 ## D17 - Wochenplan-Fehlversuche gelten nicht als gueltiger leerer Stand
 Temporäre Lesefehler beim Mini-Stundenplan, zum Beispiel gesperrte `KW_xx.docx` am Wochenwechsel, werden nicht als leerer Wochenplan persistiert.
