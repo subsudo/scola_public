@@ -834,7 +834,7 @@ public partial class MainWindow : Window
                 Participants.Add(participant);
             }
             RequestDynamicMinWidthRefresh();
-            BeginOdooMetadataWarmupForCurrentParticipants();
+            BeginHeaderMetadataWarmupForCurrentParticipants();
 
             var presentCount = Participants.Count(p => p.IsPresent);
             var absentCount = Participants.Count - presentCount;
@@ -1554,7 +1554,7 @@ public partial class MainWindow : Window
             }
         }
 
-        BeginOdooMetadataWarmupForCurrentParticipants();
+        BeginHeaderMetadataWarmupForCurrentParticipants();
         SetLastAction("Einstellungen gespeichert");
         ShowToast("Einstellungen gespeichert", ToastType.Success);
     }
@@ -1659,7 +1659,7 @@ public partial class MainWindow : Window
             {
                 participant.SelectedFolderPath = candidatePath;
                 UpdateActionState(participant);
-                BeginOdooMetadataWarmupForCurrentParticipants();
+                BeginHeaderMetadataWarmupForCurrentParticipants();
                 SetLastAction($"Ordnerkandidat gewählt für {participant.FullName}");
             };
             menu.Items.Add(menuItem);
@@ -1701,6 +1701,7 @@ public partial class MainWindow : Window
         }
 
         AnimateMiniScheduleTray(trayHost, expand: true);
+        _ = EnsureHeaderMetadataLoadedAsync(participant);
 
         if (participant.MiniScheduleState == ParticipantMiniScheduleState.Ready
             || participant.IsMiniScheduleLoading)
@@ -3267,13 +3268,13 @@ public partial class MainWindow : Window
         {
             participant.DocumentPath = string.Empty;
             participant.Initials = string.Empty;
-            participant.OdooUrl = string.Empty;
+            ResetParticipantHeaderMetadata(participant);
             return null;
         }
 
         participant.DocumentPath = selected;
         participant.Initials = _initialsResolver.TryResolveFromDocumentPath(selected);
-        participant.OdooUrl = string.Empty;
+        ResetParticipantHeaderMetadata(participant);
         return selected;
     }
 
@@ -3356,7 +3357,7 @@ public partial class MainWindow : Window
         {
             participant.DocumentPath = string.Empty;
             participant.Initials = string.Empty;
-            participant.OdooUrl = string.Empty;
+            ResetParticipantHeaderMetadata(participant);
             return;
         }
 
@@ -3373,14 +3374,14 @@ public partial class MainWindow : Window
         {
             participant.DocumentPath = string.Empty;
             participant.Initials = string.Empty;
-            participant.OdooUrl = string.Empty;
+            ResetParticipantHeaderMetadata(participant);
             return;
         }
 
         if (!string.Equals(participant.DocumentPath, preferredPath, StringComparison.OrdinalIgnoreCase))
         {
             participant.DocumentPath = preferredPath;
-            participant.OdooUrl = string.Empty;
+            ResetParticipantHeaderMetadata(participant);
         }
 
         participant.Initials = _initialsResolver.TryResolveFromDocumentPath(participant.DocumentPath);
@@ -3406,15 +3407,15 @@ public partial class MainWindow : Window
         return preferred;
     }
 
-    private void BeginOdooMetadataWarmupForCurrentParticipants()
+    private void BeginHeaderMetadataWarmupForCurrentParticipants()
     {
-        if (!ShowBtnOdoo || Participants.Count == 0)
+        if (Participants.Count == 0)
         {
             return;
         }
 
         var targets = Participants
-            .Where(participant => !string.IsNullOrWhiteSpace(participant.DocumentPath))
+            .Where(participant => !string.IsNullOrWhiteSpace(participant.DocumentPath) && !participant.IsHeaderMetadataLoaded)
             .Select(participant => participant)
             .ToList();
 
@@ -3441,15 +3442,20 @@ public partial class MainWindow : Window
                         return;
                     }
 
-                    participant.OdooUrl = metadata.OdooUrl;
-                    UpdateActionState(participant);
+                    ApplyHeaderMetadataToParticipant(participant, metadata);
                 });
             }
-        }).ContinueWith(t => AppLogger.Error($"Odoo-Metadata-Warmup fehlgeschlagen: {t.Exception?.GetBaseException().Message}", t.Exception?.GetBaseException()), TaskContinuationOptions.OnlyOnFaulted);
+        }).ContinueWith(t => AppLogger.Error($"Header-Metadata-Warmup fehlgeschlagen: {t.Exception?.GetBaseException().Message}", t.Exception?.GetBaseException()), TaskContinuationOptions.OnlyOnFaulted);
     }
 
     private bool EnsureOdooMetadataLoaded(Participant participant)
     {
+        if (participant.IsHeaderMetadataLoaded)
+        {
+            UpdateActionState(participant);
+            return participant.HasOdooUrl;
+        }
+
         var documentPath = ResolveDocumentPathForParticipant(participant);
         if (string.IsNullOrWhiteSpace(documentPath) || !File.Exists(documentPath))
         {
@@ -3457,9 +3463,58 @@ public partial class MainWindow : Window
         }
 
         var metadata = _headerMetadataService.Read(documentPath);
-        participant.OdooUrl = metadata.OdooUrl;
-        UpdateActionState(participant);
+        ApplyHeaderMetadataToParticipant(participant, metadata);
         return participant.HasOdooUrl;
+    }
+
+    private Task EnsureHeaderMetadataLoadedAsync(Participant participant)
+    {
+        if (participant.IsHeaderMetadataLoaded)
+        {
+            return Task.CompletedTask;
+        }
+
+        var documentPath = ResolveDocumentPathForParticipant(participant);
+        if (string.IsNullOrWhiteSpace(documentPath) || !File.Exists(documentPath))
+        {
+            return Task.CompletedTask;
+        }
+
+        return Task.Run(() => _headerMetadataService.Read(documentPath))
+            .ContinueWith(task =>
+            {
+                if (task.IsFaulted)
+                {
+                    AppLogger.Error($"Header-Metadaten konnten nicht nachgeladen werden: {task.Exception?.GetBaseException().Message}", task.Exception?.GetBaseException());
+                    return;
+                }
+
+                var metadata = task.Result;
+                Dispatcher.Invoke(() =>
+                {
+                    if (!string.Equals(participant.DocumentPath, documentPath, StringComparison.OrdinalIgnoreCase))
+                    {
+                        return;
+                    }
+
+                    ApplyHeaderMetadataToParticipant(participant, metadata);
+                });
+            }, TaskScheduler.Default);
+    }
+
+    private void ApplyHeaderMetadataToParticipant(Participant participant, HeaderMetadata metadata)
+    {
+        participant.OdooUrl = metadata.OdooUrl;
+        participant.CounselorInitials = metadata.CounselorInitials;
+        participant.IsHeaderMetadataLoaded = true;
+        UpdateActionState(participant);
+    }
+
+    private static void ResetParticipantHeaderMetadata(Participant participant)
+    {
+        participant.OdooUrl = string.Empty;
+        participant.CounselorInitials = string.Empty;
+        participant.IsHeaderMetadataLoaded = false;
     }
 
     private static void ResetParticipantMatch(Participant participant)
@@ -3470,7 +3525,7 @@ public partial class MainWindow : Window
         participant.MatchedFolderPath = null;
         participant.DocumentPath = string.Empty;
         participant.Initials = string.Empty;
-        participant.OdooUrl = string.Empty;
+        ResetParticipantHeaderMetadata(participant);
     }
 
     // --- Status bar ---

@@ -9,12 +9,14 @@ public class Participant : INotifyPropertyChanged
     private string _documentPath = string.Empty;
     private string _initials = string.Empty;
     private string _odooUrl = string.Empty;
+    private string _counselorInitials = string.Empty;
     private string _status = string.Empty;
     private string _absenceDetail = string.Empty;
     private ParticipantMiniScheduleState _miniScheduleState = ParticipantMiniScheduleState.Hidden;
     private ParticipantMiniScheduleSummary _miniScheduleSummary = ParticipantMiniScheduleSummary.Create(ParticipantMiniScheduleState.Hidden);
     private bool _isMiniScheduleExpanded;
     private bool _isMiniScheduleLoading;
+    private bool _isHeaderMetadataLoaded;
     private bool _isPresent;
     private string? _matchedFolderPath;
     private MatchStatus _matchStatus;
@@ -68,6 +70,20 @@ public class Participant : INotifyPropertyChanged
 
     public bool HasOdooUrl => !string.IsNullOrWhiteSpace(OdooUrl);
 
+    public string CounselorInitials
+    {
+        get => _counselorInitials;
+        set
+        {
+            if (SetField(ref _counselorInitials, value))
+            {
+                OnPropertyChanged(nameof(HasCounselorInitials));
+            }
+        }
+    }
+
+    public bool HasCounselorInitials => !string.IsNullOrWhiteSpace(CounselorInitials);
+
     public string Status
     {
         get => _status;
@@ -103,6 +119,12 @@ public class Participant : INotifyPropertyChanged
     {
         get => _isMiniScheduleLoading;
         set => SetField(ref _isMiniScheduleLoading, value);
+    }
+
+    public bool IsHeaderMetadataLoaded
+    {
+        get => _isHeaderMetadataLoaded;
+        set => SetField(ref _isHeaderMetadataLoaded, value);
     }
 
     public string AbsenceDetail

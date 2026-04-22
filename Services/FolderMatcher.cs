@@ -149,6 +149,8 @@ public class FolderMatcher
             participant.DocumentPath = string.Empty;
             participant.Initials = string.Empty;
             participant.OdooUrl = string.Empty;
+            participant.CounselorInitials = string.Empty;
+            participant.IsHeaderMetadataLoaded = false;
             return;
         }
 
@@ -168,6 +170,8 @@ public class FolderMatcher
             participant.DocumentPath = match.PreferredDocumentPath;
             participant.Initials = match.Initials;
             participant.OdooUrl = string.Empty;
+            participant.CounselorInitials = string.Empty;
+            participant.IsHeaderMetadataLoaded = false;
             return;
         }
 
@@ -177,6 +181,8 @@ public class FolderMatcher
         participant.DocumentPath = string.Empty;
         participant.Initials = string.Empty;
         participant.OdooUrl = string.Empty;
+        participant.CounselorInitials = string.Empty;
+        participant.IsHeaderMetadataLoaded = false;
     }
 
     public string? ResolveLikelyNameFromRawLine(string rawLine)
