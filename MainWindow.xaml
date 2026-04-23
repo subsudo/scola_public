@@ -603,7 +603,7 @@
 
         <DataTemplate x:Key="MiniScheduleCellTemplate" DataType="{x:Type models:ParticipantMiniScheduleCell}">
             <Border Style="{StaticResource MiniScheduleCellBorderStyle}">
-                <Grid>
+                <Grid Grid.IsSharedSizeScope="True">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="*" />
                         <RowDefinition Height="Auto" />
@@ -774,7 +774,7 @@
                             <RowDefinition Height="Auto" />
                         </Grid.RowDefinitions>
                         <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="Auto" SharedSizeGroup="ParticipantLeadingColumn" />
                             <ColumnDefinition Width="*" />
                         </Grid.ColumnDefinitions>
 
@@ -915,12 +915,13 @@
                         </Border.RenderTransform>
                         <Grid>
                             <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" SharedSizeGroup="ParticipantLeadingColumn" />
                                 <ColumnDefinition Width="*" />
                                 <ColumnDefinition Width="Auto" />
                             </Grid.ColumnDefinitions>
 
-                            <StackPanel Grid.Column="0"
-                                        Margin="6,2,18,0"
+                            <StackPanel Grid.Column="1"
+                                        Margin="0,2,18,0"
                                         VerticalAlignment="Top">
                                 <StackPanel.Style>
                                     <Style TargetType="StackPanel">
