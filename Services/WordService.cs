@@ -2931,18 +2931,7 @@ public class WordService
             AppLogger.Warn($"Word.Hwnd konnte nicht gelesen werden ({ex.GetType().Name}): {ex.Message}");
         }
 
-        try
-        {
-            var hwndRaw = (int)app.ActiveWindow.Hwnd;
-            if (hwndRaw > 0)
-            {
-                return new IntPtr(hwndRaw);
-            }
-        }
-        catch (Exception ex)
-        {
-            AppLogger.Warn($"Word.ActiveWindow.Hwnd Fallback fehlgeschlagen ({ex.GetType().Name}): {ex.Message}");
-        }
+        AppLogger.Debug("Word.Hwnd nicht verfuegbar; ActiveWindow.Hwnd-Fallback wird bewusst uebersprungen.");
 
         return IntPtr.Zero;
     }

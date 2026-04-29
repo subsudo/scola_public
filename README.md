@@ -32,6 +32,9 @@ Danach bei Bedarf die aelteren Arbeitsdokumente:
 - `TESTING.md`
 - `FEATURE_REQUESTS.md`
 
+Spezialdoku fuer die Word-Architektur und eine moegliche Uebernahme in andere Apps:
+- `docs/word-integration-handover.md`
+
 Wichtig:
 - Der aktuelle Projektkontext soll kuenftig primaer in `docs/` gepflegt werden.
 - Die bestehenden Handover-/Debug-/Bugfix-Dateien bleiben als Referenz erhalten und werden nicht geloescht.

@@ -25,6 +25,13 @@ namespace VerlaufsakteApp;
 public partial class MainWindow : Window
 {
     private readonly record struct MonitorDescriptor(string DeviceName, Rect WorkArea, bool IsPrimary);
+    private enum EntryBatchKind
+    {
+        None,
+        Bu,
+        Bi
+    }
+
     private readonly record struct DisplayDensityProfile(
         string Mode,
         double WindowFontSize,
@@ -82,11 +89,13 @@ public partial class MainWindow : Window
     private double _expandedInputHeight = DefaultStartupInputHeight;
     private string _lastActionText = "Bereit";
     private bool _isBatchCollapsed = true;
+    private bool _isBiBatchCollapsed = true;
     private bool _isBiTodoCollapsed = true;
     private readonly DispatcherTimer _layoutDebounceTimer;
     private readonly DispatcherTimer _weeklyScheduleRetryTimer;
     private CancellationTokenSource? _batchCancellation;
     private bool _isBatchRunning;
+    private EntryBatchKind _runningBatchKind = EntryBatchKind.None;
     private bool _isBiTodoRunning;
     private bool _isWordActionRunning;
     private bool _isEvaluating;
@@ -210,9 +219,11 @@ public partial class MainWindow : Window
 
         Participants = new ObservableCollection<Participant>();
         BatchResults = new ObservableCollection<BatchResult>();
+        BiBatchResults = new ObservableCollection<BatchResult>();
         BiTodoResults = new ObservableCollection<BiTodoCollectResult>();
         Participants.CollectionChanged += Participants_OnCollectionChanged;
         BatchResults.CollectionChanged += BatchResults_OnCollectionChanged;
+        BiBatchResults.CollectionChanged += BiBatchResults_OnCollectionChanged;
         BiTodoResults.CollectionChanged += BiTodoResults_OnCollectionChanged;
 
         ShowParticipantInitials = true;
@@ -260,6 +271,7 @@ public partial class MainWindow : Window
 
     public ObservableCollection<Participant> Participants { get; }
     public ObservableCollection<BatchResult> BatchResults { get; }
+    public ObservableCollection<BatchResult> BiBatchResults { get; }
     public ObservableCollection<BiTodoCollectResult> BiTodoResults { get; }
     public bool IsWordAvailable => _wordService.IsWordAvailable;
 
@@ -347,8 +359,9 @@ public partial class MainWindow : Window
         {
             _batchCancellation?.Cancel();
             e.Cancel = true;
-            ShowToast("Batch wird abgebrochen. Danach kann das Fenster geschlossen werden.", ToastType.Warning);
-            SetLastAction("Schliessen angehalten: laufender Batch wird abgebrochen.");
+            var batchLabel = GetBatchLabel(_runningBatchKind);
+            ShowToast($"{batchLabel} wird abgebrochen. Danach kann das Fenster geschlossen werden.", ToastType.Warning);
+            SetLastAction($"Schliessen angehalten: laufender {batchLabel} wird abgebrochen.");
             return;
         }
 
@@ -734,10 +747,13 @@ public partial class MainWindow : Window
         ResetMiniScheduleForAllParticipants(immediate: true);
         Participants.Clear();
         BatchResults.Clear();
+        BiBatchResults.Clear();
         BiTodoResults.Clear();
         BatchPanelContainer.Visibility = Visibility.Collapsed;
+        BiBatchPanelContainer.Visibility = Visibility.Collapsed;
         BiTodoPanelContainer.Visibility = Visibility.Collapsed;
         BatchProgressText.Text = "Fortschritt: —";
+        BiBatchProgressText.Text = "Fortschritt: —";
         BiTodoProgressText.Text = "Fortschritt: —";
         BiTodoProgressPanel.Visibility = Visibility.Collapsed;
         SetResultsAreaVisible(false);
@@ -747,8 +763,10 @@ public partial class MainWindow : Window
         ResultsContainer.Opacity = 1;
         _isInputCollapsed = false;
         _isBatchCollapsed = true;
+        _isBiBatchCollapsed = true;
         _isBiTodoCollapsed = true;
         BatchStripText.Text = "▶ BU: Batch-Eintrag ⚡︎";
+        BiBatchStripText.Text = "▶ BI: Batch-Eintrag ⚡︎";
         BiTodoStripText.Text = "▶ BI: To-dos ⚡︎";
         EvaluateButton.IsEnabled = !string.IsNullOrWhiteSpace(InputTextBox.Text);
         ApplyCompactStartupWindowState();
@@ -861,13 +879,21 @@ public partial class MainWindow : Window
             AppLogger.Info($"Auswertung abgeschlossen. Eintraege={Participants.Count}, Present={presentCount}, Absent={absentCount}");
 
             BatchResults.Clear();
+            BiBatchResults.Clear();
             BiTodoResults.Clear();
             BatchProgressText.Text = "Fortschritt: —";
+            BiBatchProgressText.Text = "Fortschritt: —";
             BiTodoProgressText.Text = "Fortschritt: —";
             if (_isBatchCollapsed)
             {
                 BatchPanelContainer.Visibility = Visibility.Collapsed;
                 BatchStripText.Text = "▶ BU: Batch-Eintrag ⚡︎";
+            }
+
+            if (_isBiBatchCollapsed)
+            {
+                BiBatchPanelContainer.Visibility = Visibility.Collapsed;
+                BiBatchStripText.Text = "▶ BI: Batch-Eintrag ⚡︎";
             }
 
             if (_isBiTodoCollapsed)
@@ -1036,6 +1062,7 @@ public partial class MainWindow : Window
 
         var footerHeight = GetActualOrFallbackHeight(ResultsActionsFooter, 34)
                            + GetActualOrFallbackHeight(BatchStripBorder, 34)
+                           + GetActualOrFallbackHeight(BiBatchStripBorder, 34)
                            + GetActualOrFallbackHeight(BiTodoStripBorder, 34);
         var paddingAllowance = _displayDensityProfile.Mode == DisplayDensityMode.Compact ? 14d : 20d;
         return Math.Ceiling(Math.Max(MinResultsWindowHeightAllowance, footerHeight + paddingAllowance));
@@ -2400,6 +2427,30 @@ public partial class MainWindow : Window
         ShowToast("Batch-Eingabe geleert", ToastType.Info);
     }
 
+    private void ToggleBiBatchPanel_OnMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        _isBiBatchCollapsed = !_isBiBatchCollapsed;
+        BiBatchPanelContainer.Visibility = _isBiBatchCollapsed ? Visibility.Collapsed : Visibility.Visible;
+        BiBatchStripText.Text = _isBiBatchCollapsed ? "▶ BI: Batch-Eintrag ⚡︎" : "▼ BI: Batch-Eintrag ⚡︎";
+
+        if (!_isBiBatchCollapsed)
+        {
+            ExpandWindowForActionPanel(BiBatchPanelContainer);
+            return;
+        }
+
+        ScheduleResultsHeightRefresh(allowShrink: true);
+    }
+
+    private void ClearBiBatchInputButton_OnClick(object sender, RoutedEventArgs e)
+    {
+        BiBatchInputTextBox.Clear();
+        BiBatchResults.Clear();
+        BiBatchProgressText.Text = "Fortschritt: —";
+        SetLastAction("BI-Batch-Eingabe geleert");
+        ShowToast("BI-Batch-Eingabe geleert", ToastType.Info);
+    }
+
     private void ToggleBiTodoPanel_OnMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
         _isBiTodoCollapsed = !_isBiTodoCollapsed;
@@ -2426,6 +2477,14 @@ public partial class MainWindow : Window
     private void BatchResults_OnCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
     {
         if (!_isBatchCollapsed)
+        {
+            ScheduleResultsHeightRefresh(allowShrink: false);
+        }
+    }
+
+    private void BiBatchResults_OnCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
+    {
+        if (!_isBiBatchCollapsed)
         {
             ScheduleResultsHeightRefresh(allowShrink: false);
         }
@@ -2477,6 +2536,16 @@ public partial class MainWindow : Window
         if (BiTodoStripBorder.Visibility == Visibility.Visible)
         {
             return BiTodoStripBorder;
+        }
+
+        if (!_isBiBatchCollapsed && BiBatchPanelContainer.Visibility == Visibility.Visible)
+        {
+            return BiBatchPanelContainer;
+        }
+
+        if (BiBatchStripBorder.Visibility == Visibility.Visible)
+        {
+            return BiBatchStripBorder;
         }
 
         if (!_isBatchCollapsed && BatchPanelContainer.Visibility == Visibility.Visible)
@@ -2646,9 +2715,40 @@ public partial class MainWindow : Window
 
     private async void ExecuteBatchButton_OnClick(object sender, RoutedEventArgs e)
     {
+        await ExecuteEntryBatchAsync(
+            EntryBatchKind.Bu,
+            "BU-Batch",
+            _config.WordBookmarkName,
+            participant => participant.CanInsertEntry,
+            BatchInputTextBox,
+            BatchResults,
+            BatchProgressText);
+    }
+
+    private async void ExecuteBiBatchButton_OnClick(object sender, RoutedEventArgs e)
+    {
+        await ExecuteEntryBatchAsync(
+            EntryBatchKind.Bi,
+            "BI-Batch",
+            _config.WordBiTableBookmarkName,
+            participant => participant.CanInsertEntryBi,
+            BiBatchInputTextBox,
+            BiBatchResults,
+            BiBatchProgressText);
+    }
+
+    private async Task ExecuteEntryBatchAsync(
+        EntryBatchKind kind,
+        string batchLabel,
+        string bookmarkName,
+        Func<Participant, bool> isEligible,
+        TextBox inputTextBox,
+        ObservableCollection<BatchResult> results,
+        TextBlock progressText)
+    {
         if (_isBatchRunning)
         {
-            ShowToast("Batch läuft bereits.", ToastType.Warning);
+            ShowToast($"{GetBatchLabel(_runningBatchKind)} läuft bereits.", ToastType.Warning);
             return;
         }
 
@@ -2658,14 +2758,14 @@ public partial class MainWindow : Window
             return;
         }
 
-        var eligible = Participants.Where(p => p.CanInsertEntry).ToList();
+        var eligible = Participants.Where(isEligible).ToList();
         if (eligible.Count == 0)
         {
-            ShowToast("Keine aktiven Teilnehmer für Batch-Eintrag.", ToastType.Warning);
+            ShowToast($"Keine aktiven Teilnehmer für {batchLabel}.", ToastType.Warning);
             return;
         }
 
-        var rawRows = BatchInputTextBox.Text
+        var rawRows = inputTextBox.Text
             .Split(new[] { "\r\n", "\n", "\r" }, StringSplitOptions.None)
             .Where(l => !string.IsNullOrWhiteSpace(l))
             .Select(l => l.Trim())
@@ -2673,7 +2773,7 @@ public partial class MainWindow : Window
 
         if (rawRows.Count != eligible.Count)
         {
-            ShowToast($"Batch-Zeilen ({rawRows.Count}) passen nicht zu aktiven TN ({eligible.Count}).", ToastType.Warning);
+            ShowToast($"{batchLabel}-Zeilen ({rawRows.Count}) passen nicht zu aktiven TN ({eligible.Count}).", ToastType.Warning);
             return;
         }
 
@@ -2682,7 +2782,7 @@ public partial class MainWindow : Window
         {
             if (!TryNormalizeBatchRow(rawRows[i], out var normalized, out var error))
             {
-                ShowToast($"Batch-Zeile {i + 1} ungültig: {error}", ToastType.Error);
+                ShowToast($"{batchLabel}-Zeile {i + 1} ungültig: {error}", ToastType.Error);
                 return;
             }
 
@@ -2690,9 +2790,9 @@ public partial class MainWindow : Window
         }
 
         var mapping = eligible.Zip(normalizedRows, (participant, row) => (participant, row)).ToList();
-        if (!ShowBatchMappingConfirmation(mapping))
+        if (!ShowBatchMappingConfirmation(batchLabel, mapping))
         {
-            SetLastAction("Batch abgebrochen (Zuordnung nicht bestätigt).");
+            SetLastAction($"{batchLabel} abgebrochen (Zuordnung nicht bestätigt).");
             return;
         }
 
@@ -2701,16 +2801,17 @@ public partial class MainWindow : Window
         var token = _batchCancellation.Token;
 
         _isBatchRunning = true;
+        _runningBatchKind = kind;
         SetWordActionBusy(true);
-        ExecuteBatchButton.IsEnabled = false;
-        BatchResults.Clear();
+        results.Clear();
 
         try
         {
-            foreach (var (participant, row) in mapping)
+            for (var i = 0; i < mapping.Count; i++)
             {
+                var (participant, row) = mapping[i];
                 token.ThrowIfCancellationRequested();
-                BatchProgressText.Text = $"Fortschritt: Verarbeite {participant.FullName}...";
+                progressText.Text = $"Fortschritt: Verarbeite {participant.FullName}...";
                 await Task.Yield();
                 token.ThrowIfCancellationRequested();
 
@@ -2719,12 +2820,13 @@ public partial class MainWindow : Window
                     var docPath = ResolveDocumentPathForParticipant(participant);
                     if (string.IsNullOrWhiteSpace(docPath))
                     {
-                        BatchResults.Add(new BatchResult { Name = participant.FullName, IsSuccess = false, Message = "keine Akte" });
+                        results.Add(new BatchResult { Name = participant.FullName, IsSuccess = false, Message = "keine Akte" });
                         continue;
                     }
 
-                    await _wordStaHost.RunAsync("InsertTextRowToTable-Batch", service => service.InsertTextRowToTable(docPath, _config.WordBookmarkName, row));
-                    BatchResults.Add(new BatchResult { Name = participant.FullName, IsSuccess = true, Message = "Eintrag eingefügt" });
+                    var operationName = $"{batchLabel} row {i + 1}/{mapping.Count}";
+                    await _wordStaHost.RunAsync(operationName, service => service.InsertTextRowToTable(docPath, bookmarkName, row));
+                    results.Add(new BatchResult { Name = participant.FullName, IsSuccess = true, Message = "Eintrag eingefügt" });
                 }
                 catch (OperationCanceledException)
                 {
@@ -2732,56 +2834,56 @@ public partial class MainWindow : Window
                 }
                 catch (WordTemplateValidationException ex) when (ex.Kind == WordTemplateValidationErrorKind.BookmarkMissing)
                 {
-                    BatchResults.Add(new BatchResult { Name = participant.FullName, IsSuccess = false, Message = "Bookmark fehlt" });
+                    results.Add(new BatchResult { Name = participant.FullName, IsSuccess = false, Message = "Bookmark fehlt" });
                 }
                 catch (WordTemplateValidationException ex) when (ex.Kind == WordTemplateValidationErrorKind.StructuredEntryTableInvalid)
                 {
-                    BatchResults.Add(new BatchResult { Name = participant.FullName, IsSuccess = false, Message = ex.UserMessage });
+                    results.Add(new BatchResult { Name = participant.FullName, IsSuccess = false, Message = ex.UserMessage });
                 }
                 catch (InvalidOperationException ex) when (ex.Message.Contains("gesperrt", StringComparison.OrdinalIgnoreCase))
                 {
-                    BatchResults.Add(new BatchResult { Name = participant.FullName, IsSuccess = false, Message = "Akte gesperrt" });
+                    results.Add(new BatchResult { Name = participant.FullName, IsSuccess = false, Message = "Akte gesperrt" });
                 }
                 catch (InvalidOperationException ex) when (ex.Message.Contains("Keine Verlaufsakte", StringComparison.OrdinalIgnoreCase))
                 {
-                    BatchResults.Add(new BatchResult { Name = participant.FullName, IsSuccess = false, Message = "keine Akte" });
+                    results.Add(new BatchResult { Name = participant.FullName, IsSuccess = false, Message = "keine Akte" });
                 }
                 catch (InvalidOperationException ex) when (ex.Message.Contains("Zeilenformat", StringComparison.OrdinalIgnoreCase))
                 {
-                    BatchResults.Add(new BatchResult { Name = participant.FullName, IsSuccess = false, Message = "Zeilenformat ungültig" });
+                    results.Add(new BatchResult { Name = participant.FullName, IsSuccess = false, Message = "Zeilenformat ungültig" });
                 }
                 catch (Exception ex)
                 {
-                    BatchResults.Add(new BatchResult { Name = participant.FullName, IsSuccess = false, Message = ex.Message });
+                    results.Add(new BatchResult { Name = participant.FullName, IsSuccess = false, Message = ex.Message });
                 }
             }
 
-            var success = BatchResults.Count(r => r.IsSuccess);
-            var failed = BatchResults.Count - success;
-            BatchProgressText.Text = $"Fortschritt: abgeschlossen ({success} ✓ / {failed} ✗)";
-            SetLastAction($"Batch abgeschlossen: {success} erfolgreich, {failed} fehlgeschlagen.");
+            var success = results.Count(r => r.IsSuccess);
+            var failed = results.Count - success;
+            progressText.Text = $"Fortschritt: abgeschlossen ({success} ✓ / {failed} ✗)";
+            SetLastAction($"{batchLabel} abgeschlossen: {success} erfolgreich, {failed} fehlgeschlagen.");
 
             if (failed > 0)
             {
-                ShowToast($"Batch abgeschlossen mit {failed} Fehler{(failed == 1 ? string.Empty : "n") }.", ToastType.Warning);
-                ShowBatchFailureSummary(BatchResults.Where(r => !r.IsSuccess).ToList());
+                ShowToast($"{batchLabel} abgeschlossen mit {failed} Fehler{(failed == 1 ? string.Empty : "n")}.", ToastType.Warning);
+                ShowBatchFailureSummary(batchLabel, results.Where(r => !r.IsSuccess).ToList());
             }
             else
             {
-                ShowToast($"Batch erfolgreich abgeschlossen ({success} Einträge).", ToastType.Success);
+                ShowToast($"{batchLabel} erfolgreich abgeschlossen ({success} Einträge).", ToastType.Success);
             }
         }
         catch (OperationCanceledException)
         {
-            BatchProgressText.Text = "Fortschritt: abgebrochen";
-            SetLastAction("Batch abgebrochen.");
-            ShowToast("Batch wurde abgebrochen.", ToastType.Warning);
+            progressText.Text = "Fortschritt: abgebrochen";
+            SetLastAction($"{batchLabel} abgebrochen.");
+            ShowToast($"{batchLabel} wurde abgebrochen.", ToastType.Warning);
         }
         finally
         {
             _isBatchRunning = false;
+            _runningBatchKind = EntryBatchKind.None;
             SetWordActionBusy(false);
-            ExecuteBatchButton.IsEnabled = true;
             _batchCancellation?.Dispose();
             _batchCancellation = null;
         }
@@ -2975,6 +3077,11 @@ public partial class MainWindow : Window
             ExecuteBatchButton.IsEnabled = !_isWordActionRunning && !_isBatchRunning;
         }
 
+        if (ExecuteBiBatchButton is not null)
+        {
+            ExecuteBiBatchButton.IsEnabled = !_isWordActionRunning && !_isBatchRunning;
+        }
+
         if (ExecuteBiTodoButton is not null)
         {
             ExecuteBiTodoButton.IsEnabled = !_isWordActionRunning && !_isBiTodoRunning;
@@ -3050,7 +3157,17 @@ public partial class MainWindow : Window
         return true;
     }
 
-    private bool ShowBatchMappingConfirmation(IReadOnlyList<(Participant participant, string row)> mapping)
+    private static string GetBatchLabel(EntryBatchKind kind)
+    {
+        return kind switch
+        {
+            EntryBatchKind.Bu => "BU-Batch",
+            EntryBatchKind.Bi => "BI-Batch",
+            _ => "Batch"
+        };
+    }
+
+    private bool ShowBatchMappingConfirmation(string batchLabel, IReadOnlyList<(Participant participant, string row)> mapping)
     {
         var list = new ListBox
         {
@@ -3091,7 +3208,7 @@ public partial class MainWindow : Window
         var root = new StackPanel { Margin = new Thickness(12) };
         root.Children.Add(new TextBlock
         {
-            Text = "Bitte Zuordnung prüfen: Zeile 1 -> TN 1, Zeile 2 -> TN 2 ...",
+            Text = $"{batchLabel}: Bitte Zuordnung prüfen: Zeile 1 -> TN 1, Zeile 2 -> TN 2 ...",
             Margin = new Thickness(0, 0, 0, 8)
         });
         root.Children.Add(list);
@@ -3100,7 +3217,7 @@ public partial class MainWindow : Window
         var dlg = new Window
         {
             Owner = this,
-            Title = "Batch-Zuordnung bestätigen",
+            Title = $"{batchLabel}-Zuordnung bestätigen",
             WindowStartupLocation = WindowStartupLocation.CenterOwner,
             Width = 860,
             Height = 430,
@@ -3115,7 +3232,7 @@ public partial class MainWindow : Window
 
     // --- Helpers ---
 
-    private void ShowBatchFailureSummary(IReadOnlyList<BatchResult> failures)
+    private void ShowBatchFailureSummary(string batchLabel, IReadOnlyList<BatchResult> failures)
     {
         if (failures.Count == 0)
         {
@@ -3133,9 +3250,9 @@ public partial class MainWindow : Window
             lines.Add($"... und {failures.Count - maxItems} weitere");
         }
 
-        AppLogger.Warn($"Batch mit Fehlern abgeschlossen: {string.Join(" | ", failures.Select(f => $"{f.Name}={f.Message}"))}");
+        AppLogger.Warn($"{batchLabel} mit Fehlern abgeschlossen: {string.Join(" | ", failures.Select(f => $"{f.Name}={f.Message}"))}");
 
-        var dialog = new BatchFailureSummaryWindow(lines, failures.Count)
+        var dialog = new BatchFailureSummaryWindow(lines, failures.Count, batchLabel)
         {
             Owner = this
         };
@@ -3187,7 +3304,7 @@ public partial class MainWindow : Window
             ShowImportantAlert(
                 "Update momentan nicht möglich",
                 "Scola arbeitet gerade noch.",
-                "Bitte warte, bis Batch, BI: To-dos oder eine Word-Aktion fertig sind. Danach kann das Update beim nächsten Start erneut durchgeführt werden.",
+                "Bitte warte, bis BU-/BI-Batch, BI: To-dos oder eine Word-Aktion fertig sind. Danach kann das Update beim nächsten Start erneut durchgeführt werden.",
                 AppAlertKind.Warning);
             return false;
         }

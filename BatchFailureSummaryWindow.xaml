@@ -88,7 +88,8 @@
                 </Border>
 
                 <StackPanel Grid.Column="2">
-                    <TextBlock Text="Batch mit Fehlern abgeschlossen"
+                    <TextBlock x:Name="TitleTextBlock"
+                               Text="Batch mit Fehlern abgeschlossen"
                                Foreground="{DynamicResource Brush.PrimaryText}"
                                FontWeight="SemiBold"
                                FontSize="18" />

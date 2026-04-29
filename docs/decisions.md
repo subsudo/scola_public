@@ -44,6 +44,11 @@ Begruendung:
 ## D6 - Batch ist positionsbasiert
 Batch-Zuordnung erfolgt aktuell bewusst nach Position, mit vorgeschalteter Zuordnungsbestaetigung.
 
+Aktuelle Regel:
+- BU-Batch und BI-Batch verwenden dieselbe Eingabe-, Validierungs-, Zuordnungs- und Fehlerlogik
+- der Unterschied liegt nur im Ziel-Bookmark der Word-Tabelle
+- beide Batch-Arten teilen sich einen gemeinsamen Laufzustand, damit sie nicht parallel gegeneinander arbeiten
+
 Begruendung:
 - einfach
 - nachvollziehbar

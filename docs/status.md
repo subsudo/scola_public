@@ -19,7 +19,7 @@ Stand dieser Zusammenfassung: 2026-03-17
 - Mini-Stundenplan-Layout jetzt bewusst naeher an XHub: kompaktes Raster mit Headerzeile, Lunch-Seperator und Status-Badges fuer `disp` / `ext`
 - Stundenplan-Fehlversuche werden nicht mehr als leerer Wochenplan gecacht; die aktuelle KW wird bei temporaeren Locks im Hintergrund erneut versucht
 - `Auswerten` zeigt waehrend laengerer Listenverarbeitung einen sichtbaren Ladezustand mit kleinem Progress-Indikator
-- Batch-Eintrag mit positionsbasierter Zuordnung und Mapping-Bestaetigung
+- BU-/BI-Batch-Eintrag mit positionsbasierter Zuordnung und Mapping-Bestaetigung
 - `BI: To-dos` als eigener Sammellauf fuer angehakte TN
 - unsichtbares Lesen der BI-To-do-Tabelle per Word-Instanz ohne sichtbares Oeffnen der Quellakten
 - neues ungespeichertes Sammeldokument mit Titel, Name, Kuersel und kompletter To-do-Tabelle pro TN

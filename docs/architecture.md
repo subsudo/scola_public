@@ -58,6 +58,8 @@ Scola ist eine WPF-Anwendung ohne separates MVVM-Framework. Die Architektur ist 
   - farbliche Statuslogik wird konservativ gelesen: `disp` nur bei echter roter Markierung, nicht bei bloss roter Schrift; `ext` bleibt ueber gruene Markierung
 - `Services/WordService.cs`
   - COM-Zugriff auf Word, Dokumentoeffnen, Bookmarks, Tabellen-Eintrag, Lock- und Leak-Handling
+- `Services/WordStaHost.cs`
+  - serieller STA-Host fuer alle Word-Operationen; trennt UI-Thread und COM-Laufzeit
 - `Services/UserPrefsService.cs`
   - Laden/Speichern von UserPrefs
 - `Services/AppLogger.cs`
@@ -79,7 +81,7 @@ Scola ist eine WPF-Anwendung ohne separates MVVM-Framework. Die Architektur ist 
 3. je nach Aktion:
    - Explorer
    - Browser
-   - `WordService`
+   - `_wordStaHost` -> `WordService`
 4. Rueckmeldung per Toast oder gestyltem Dialog
 
 ### 3. Batch-Flow

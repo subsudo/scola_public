@@ -1341,6 +1341,125 @@
                                 </Grid>
                             </Border>
 
+                            <Border x:Name="BiBatchStripBorder"
+                                    Margin="{DynamicResource Density.BatchToggleMargin}"
+                                    Style="{StaticResource CollapsedStripStyle}"
+                                    MouseLeftButtonDown="ToggleBiBatchPanel_OnMouseLeftButtonDown">
+                                <TextBlock x:Name="BiBatchStripText"
+                                           Foreground="{DynamicResource Brush.PrimaryText}"
+                                           FontWeight="SemiBold"
+                                           Text="▶ BI: Batch-Eintrag ⚡︎" />
+                            </Border>
+
+                            <Border x:Name="BiBatchPanelContainer"
+                                    Margin="0,6,0,0"
+                                    Background="{DynamicResource Brush.PanelBg}"
+                                    BorderBrush="{DynamicResource Brush.Border}"
+                                    BorderThickness="1"
+                                    CornerRadius="6"
+                                    Padding="{DynamicResource Density.BatchPanelPadding}"
+                                    Visibility="Collapsed">
+                                <Grid>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="120" />
+                                        <RowDefinition Height="6" />
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                    </Grid.RowDefinitions>
+
+                                    <TextBlock Grid.Row="0"
+                                               Text="Der BI: Batch-Eintrag verwendet dieselbe Eingabelogik wie BU. Bitte pro aktivem TN genau eine Zeile mit 4 tab-getrennten Spalten einfügen."
+                                               Foreground="{DynamicResource Brush.SecondaryText}"
+                                               TextWrapping="Wrap"
+                                               Margin="{DynamicResource Density.BatchDescriptionMargin}"
+                                               FontSize="{DynamicResource Density.SecondaryFontSize}" />
+
+                                    <TextBox x:Name="BiBatchInputTextBox"
+                                             Grid.Row="1"
+                                             MinHeight="90"
+                                             Style="{StaticResource InputTextBoxStyle}"
+                                             AcceptsReturn="True"
+                                             TextWrapping="Wrap"
+                                             VerticalScrollBarVisibility="Auto"
+                                             HorizontalScrollBarVisibility="Disabled" />
+
+                                    <GridSplitter Grid.Row="2"
+                                                  Height="6"
+                                                  HorizontalAlignment="Stretch"
+                                                  VerticalAlignment="Center"
+                                                  ResizeDirection="Rows"
+                                                  ResizeBehavior="PreviousAndNext"
+                                                  ShowsPreview="True"
+                                                  Background="{DynamicResource Brush.Border}" />
+
+                                    <Grid Grid.Row="3"
+                                          Margin="{DynamicResource Density.BatchButtonsMargin}">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="12" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+
+                                        <Button x:Name="ExecuteBiBatchButton"
+                                                Grid.Column="0"
+                                                Width="140"
+                                                Height="34"
+                                                Style="{StaticResource EvaluateButtonStyle}"
+                                                Content="Batch ausführen ⚡︎"
+                                                Click="ExecuteBiBatchButton_OnClick" />
+                                        <Button Grid.Column="2"
+                                                Width="140"
+                                                Height="34"
+                                                Style="{StaticResource ActionButtonStyle}"
+                                                Content="Inhalt löschen"
+                                                Click="ClearBiBatchInputButton_OnClick" />
+                                    </Grid>
+
+                                    <TextBlock x:Name="BiBatchProgressText"
+                                               Grid.Row="4"
+                                               Margin="{DynamicResource Density.BatchProgressMargin}"
+                                               VerticalAlignment="Center"
+                                               Foreground="{DynamicResource Brush.SecondaryText}"
+                                               FontSize="{DynamicResource Density.SecondaryFontSize}"
+                                               Text="Fortschritt: —" />
+
+                                    <ItemsControl Grid.Row="5"
+                                                  Margin="0,8,0,0"
+                                                  ItemsSource="{Binding BiBatchResults}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <TextBlock Margin="0,2,0,0"
+                                                           Text="{Binding Name}">
+                                                    <TextBlock.Style>
+                                                        <Style TargetType="TextBlock">
+                                                            <Setter Property="Foreground" Value="{DynamicResource Brush.SecondaryText}" />
+                                                            <Setter Property="Text">
+                                                                <Setter.Value>
+                                                                    <MultiBinding StringFormat="{}{0} - {1}">
+                                                                        <Binding Path="Name" />
+                                                                        <Binding Path="Message" />
+                                                                    </MultiBinding>
+                                                                </Setter.Value>
+                                                            </Setter>
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding IsSuccess}" Value="True">
+                                                                    <Setter Property="Foreground" Value="{DynamicResource Brush.Success}" />
+                                                                </DataTrigger>
+                                                                <DataTrigger Binding="{Binding IsSuccess}" Value="False">
+                                                                    <Setter Property="Foreground" Value="{DynamicResource Brush.Error}" />
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </TextBlock.Style>
+                                                </TextBlock>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </Grid>
+                            </Border>
+
                             <Border x:Name="BiTodoStripBorder"
                                     Margin="{DynamicResource Density.BatchToggleMargin}"
                                     Style="{StaticResource CollapsedStripStyle}"
