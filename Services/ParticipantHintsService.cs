@@ -406,9 +406,43 @@ public sealed class ParticipantHintsService
             return cached;
         }
 
-        var resolved = TryResolveUniversalName(root.TrimEnd('\\') + "\\");
+        var driveName = root.TrimEnd('\\');
+        var resolved = TryResolveMappedDriveRoot(driveName)
+                       ?? TryResolveUniversalName(root.TrimEnd('\\') + "\\");
         _uncRootCache[root] = resolved;
         return resolved;
+    }
+
+    private static string? TryResolveMappedDriveRoot(string driveName)
+    {
+        if (string.IsNullOrWhiteSpace(driveName))
+        {
+            return null;
+        }
+
+        var buffer = new StringBuilder(512);
+        var bufferSize = buffer.Capacity;
+        var result = NativeMethods.WNetGetConnection(driveName, buffer, ref bufferSize);
+        if (result == NoError)
+        {
+            return buffer.ToString().TrimEnd('\\');
+        }
+
+        if (result != ErrorMoreData || bufferSize <= buffer.Capacity)
+        {
+            AppLogger.Debug($"Hinweise: WNetGetConnection konnte Laufwerk '{driveName}' nicht aufloesen. Result={result}.");
+            return null;
+        }
+
+        buffer = new StringBuilder(bufferSize);
+        result = NativeMethods.WNetGetConnection(driveName, buffer, ref bufferSize);
+        if (result == NoError)
+        {
+            return buffer.ToString().TrimEnd('\\');
+        }
+
+        AppLogger.Debug($"Hinweise: WNetGetConnection konnte Laufwerk '{driveName}' auch mit erweitertem Buffer nicht aufloesen. Result={result}.");
+        return null;
     }
 
     private static string? TryResolveUniversalName(string path)
@@ -462,5 +496,8 @@ public sealed class ParticipantHintsService
     {
         [DllImport("mpr.dll", CharSet = CharSet.Unicode)]
         public static extern int WNetGetUniversalName(string lpLocalPath, int dwInfoLevel, IntPtr lpBuffer, ref int lpBufferSize);
+
+        [DllImport("mpr.dll", CharSet = CharSet.Unicode)]
+        public static extern int WNetGetConnection(string lpLocalName, StringBuilder lpRemoteName, ref int lpnLength);
     }
 }

@@ -1680,10 +1680,6 @@ public partial class MainWindow : Window
 
         var menu = new ContextMenu
         {
-            Background = BrushFromHex("#2A2B31"),
-            Foreground = BrushFromHex("#E0E0E0"),
-            BorderBrush = BrushFromHex("#3A3B42"),
-            BorderThickness = new Thickness(1),
             PlacementTarget = sender as Border
         };
 
