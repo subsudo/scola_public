@@ -3,6 +3,7 @@ using System.Diagnostics;
 using Microsoft.CSharp.RuntimeBinder;
 using System.Reflection;
 using System.Runtime.InteropServices;
+using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Windows;
@@ -27,6 +28,7 @@ public class WordService
     private const int WordAttachRetryCount = 3;
     private const int WordAttachRetryDelayMs = 150;
     private static readonly Regex MultiWhitespaceRegex = new(@"\s+", RegexOptions.Compiled);
+    private static readonly Regex GhostDocumentWindowTitleRegex = new(@"^Dokument\d+\s+-\s+Word$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
     private sealed class BiTodoTemplateDefinition
     {
@@ -80,6 +82,14 @@ public class WordService
         public long MainWindowHandle { get; init; }
         public bool? Responding { get; init; }
         public DateTime? StartTimeUtc { get; init; }
+    }
+
+    private sealed class WordWindowSnapshot
+    {
+        public required IntPtr Hwnd { get; init; }
+        public required int ProcessId { get; init; }
+        public string Title { get; init; } = string.Empty;
+        public string Classification { get; init; } = string.Empty;
     }
 
     private static int _wordLifecycleOperationSequence;
@@ -210,7 +220,9 @@ public class WordService
             return;
         }
 
-        var documents = SnapshotOpenDocuments(app);
+        var documents = app is null
+            ? Array.Empty<WordDocumentSnapshot>()
+            : SnapshotOpenDocuments(app);
         LogWordLifecycle(context, $"Stage='{stage}', DocumentSnapshotCount={documents.Count}.");
         foreach (var document in documents)
         {
@@ -287,7 +299,55 @@ public class WordService
             context,
             $"Stage='{finalStage}', OperationSucceeded={operationSucceeded}, OpenedHere={openedHere}, ShouldQuitCreatedApp={shouldQuitCreatedApp}.");
         LogWordLifecycleAppState(app, context, $"{finalStage}-AppState");
-        LogWordLifecycleDocumentSnapshot(app, context, $"{finalStage}-Documents");
+        var documents = app is null
+            ? Array.Empty<WordDocumentSnapshot>()
+            : SnapshotOpenDocuments(app);
+        LogWordLifecycleDocumentSnapshot(context, $"{finalStage}-Documents", documents);
+        LogWordLifecycleWindowSnapshot(app, context, $"{finalStage}-Windows", documents);
+    }
+
+    private static void LogWordLifecycleDocumentSnapshot(
+        WordLifecycleOperationContext? context,
+        string stage,
+        IReadOnlyList<WordDocumentSnapshot> documents)
+    {
+        if (!IsWordLifecycleLoggingEnabled())
+        {
+            return;
+        }
+
+        LogWordLifecycle(context, $"Stage='{stage}', DocumentSnapshotCount={documents.Count}.");
+        foreach (var document in documents)
+        {
+            LogWordLifecycle(
+                context,
+                $"Stage='{stage}', DocIndex={document.Index}, Name='{SanitizeForLog(document.Name)}', FullName='{SanitizeForLog(document.FullName)}', Path='{SanitizeForLog(document.Path)}', Saved={FormatOptional(document.Saved)}, ReadOnly={FormatOptional(document.ReadOnly)}, IsUnsaved={document.IsUnsaved}.");
+        }
+    }
+
+    private static void LogWordLifecycleWindowSnapshot(
+        object? app,
+        WordLifecycleOperationContext? context,
+        string stage,
+        IReadOnlyList<WordDocumentSnapshot> documents)
+    {
+        if (!IsWordLifecycleLoggingEnabled())
+        {
+            return;
+        }
+
+        var processIds = ResolveWordWindowDiagnosticProcessIds(app);
+        var windows = SnapshotWordTopLevelWindows(processIds, documents);
+        LogWordLifecycle(
+            context,
+            $"Stage='{stage}', WindowSnapshotCount={windows.Count}, DiagnosticPidScope='{FormatDiagnosticPidScope(processIds)}'.");
+
+        foreach (var window in windows)
+        {
+            LogWordLifecycle(
+                context,
+                $"Stage='{stage}', Hwnd={FormatHwnd(window.Hwnd)}, Pid={window.ProcessId}, Title='{SanitizeForLog(window.Title)}', Classification={window.Classification}.");
+        }
     }
 
     private static void LogWordLifecycleProcessSnapshot(
@@ -360,6 +420,144 @@ public class WordService
 
         snapshots.Sort(static (left, right) => left.ProcessId.CompareTo(right.ProcessId));
         return snapshots;
+    }
+
+    private static IReadOnlySet<int> ResolveWordWindowDiagnosticProcessIds(object? app)
+    {
+        var processId = TryGetWordApplicationProcessIdFromApplicationHwnd(app);
+        if (processId.HasValue)
+        {
+            return new HashSet<int> { processId.Value };
+        }
+
+        return SnapshotRunningWordProcesses()
+            .Select(process => process.ProcessId)
+            .ToHashSet();
+    }
+
+    private static int? TryGetWordApplicationProcessIdFromApplicationHwnd(object? app)
+    {
+        if (app is null)
+        {
+            return null;
+        }
+
+        try
+        {
+            dynamic wordApp = app;
+            var hwnd = TryReadInt64(() => Convert.ToInt64(wordApp.Hwnd))
+                       ?? TryReadComInt64Property(app, "Hwnd");
+            return TryGetProcessIdFromHwnd(hwnd);
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private static IReadOnlyList<WordWindowSnapshot> SnapshotWordTopLevelWindows(
+        IReadOnlySet<int> processIds,
+        IReadOnlyList<WordDocumentSnapshot> documents)
+    {
+        var windows = new List<WordWindowSnapshot>();
+        if (processIds.Count == 0)
+        {
+            return windows;
+        }
+
+        var documentAliases = BuildDocumentTitleAliases(documents);
+        NativeMethods.EnumWindows((hwnd, _) =>
+        {
+            NativeMethods.GetWindowThreadProcessId(hwnd, out var windowProcessId);
+            if (windowProcessId == 0 || !processIds.Contains((int)windowProcessId))
+            {
+                return true;
+            }
+
+            var title = ReadWindowTitle(hwnd);
+            if (string.IsNullOrWhiteSpace(title))
+            {
+                return true;
+            }
+
+            windows.Add(new WordWindowSnapshot
+            {
+                Hwnd = hwnd,
+                ProcessId = (int)windowProcessId,
+                Title = title,
+                Classification = ClassifyWordWindowTitle(title, documentAliases)
+            });
+
+            return true;
+        }, IntPtr.Zero);
+
+        return windows;
+    }
+
+    private static IReadOnlyList<string> BuildDocumentTitleAliases(IReadOnlyList<WordDocumentSnapshot> documents)
+    {
+        var aliases = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var document in documents)
+        {
+            AddDocumentTitleAlias(aliases, document.Name);
+            AddDocumentTitleAlias(aliases, document.FullName);
+            AddDocumentTitleAlias(aliases, Path.GetFileName(document.FullName));
+        }
+
+        return aliases.ToArray();
+    }
+
+    private static void AddDocumentTitleAlias(HashSet<string> aliases, string? value)
+    {
+        if (!string.IsNullOrWhiteSpace(value))
+        {
+            aliases.Add(value.Trim());
+        }
+    }
+
+    private static string ClassifyWordWindowTitle(string title, IReadOnlyList<string> documentAliases)
+    {
+        if (documentAliases.Any(alias => title.Contains(alias, StringComparison.OrdinalIgnoreCase)))
+        {
+            return "Match";
+        }
+
+        return GhostDocumentWindowTitleRegex.IsMatch(title)
+            ? "OrphanCandidate"
+            : "Other";
+    }
+
+    private static string ReadWindowTitle(IntPtr hwnd)
+    {
+        try
+        {
+            var length = NativeMethods.GetWindowTextLength(hwnd);
+            if (length <= 0)
+            {
+                return string.Empty;
+            }
+
+            var builder = new StringBuilder(length + 1);
+            return NativeMethods.GetWindowText(hwnd, builder, builder.Capacity) > 0
+                ? builder.ToString()
+                : string.Empty;
+        }
+        catch
+        {
+            return string.Empty;
+        }
+    }
+
+    private static string FormatHwnd(IntPtr hwnd)
+    {
+        return $"0x{hwnd.ToInt64():X}";
+    }
+
+    private static string FormatDiagnosticPidScope(IReadOnlySet<int> processIds)
+    {
+        return processIds.Count == 0
+            ? "none"
+            : string.Join(",", processIds.OrderBy(processId => processId));
     }
 
     private static string SanitizeForLog(string? value)
@@ -471,24 +669,6 @@ public class WordService
             dynamic wordApp = app;
             var hwnd = TryReadInt64(() => Convert.ToInt64(wordApp.Hwnd))
                        ?? TryReadComInt64Property(app, "Hwnd");
-            if (hwnd is null)
-            {
-                dynamic? activeWindow = null;
-                try
-                {
-                    activeWindow = wordApp.ActiveWindow;
-                    hwnd = TryReadInt64(() => Convert.ToInt64(activeWindow.Hwnd))
-                           ?? TryReadComInt64Property(activeWindow, "Hwnd");
-                }
-                catch
-                {
-                    hwnd = null;
-                }
-                finally
-                {
-                    SafeReleaseCom(activeWindow);
-                }
-            }
 
             return TryGetProcessIdFromHwnd(hwnd);
         }
@@ -2572,8 +2752,29 @@ public class WordService
 
     private static void EnsureWordUiState(dynamic app, WordLifecycleOperationContext? context = null)
     {
-        app.Visible = true;
-        LogWordLifecycle(context, "EnsureWordUiState: Visible=true gesetzt.");
+        bool? isVisible = null;
+        try
+        {
+            isVisible = (bool)app.Visible;
+        }
+        catch (Exception ex)
+        {
+            AppLogger.Warn($"EnsureWordUiState: Word.Visible konnte nicht gelesen werden ({ex.GetType().Name}): {ex.Message}");
+            LogWordLifecycle(context, $"EnsureWordUiState: Visible-Lesen fehlgeschlagen. Type='{SanitizeForLog(ex.GetType().Name)}', Message='{SanitizeForLog(ex.Message)}'.");
+        }
+
+        if (isVisible == true)
+        {
+            LogWordLifecycle(context, "EnsureWordUiState: Word bereits sichtbar, Visible=true nicht erneut gesetzt.");
+        }
+        else
+        {
+            app.Visible = true;
+            LogWordLifecycle(context, isVisible == false
+                ? "EnsureWordUiState: Visible=true gesetzt."
+                : "EnsureWordUiState: Visible=true nach fehlgeschlagenem Visible-Lesen konservativ gesetzt.");
+        }
+
         TryBringWordToForeground(app);
     }
 
@@ -3708,6 +3909,8 @@ public class WordService
 
     private static class NativeMethods
     {
+        public delegate bool EnumWindowsProc(IntPtr hWnd, IntPtr lParam);
+
         public const int SW_SHOW = 5;
         public const int SW_RESTORE = 9;
 
@@ -3728,6 +3931,16 @@ public class WordService
 
         [DllImport("user32.dll", SetLastError = true)]
         public static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint lpdwProcessId);
+
+        [DllImport("user32.dll")]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        public static extern bool EnumWindows(EnumWindowsProc lpEnumFunc, IntPtr lParam);
+
+        [DllImport("user32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+        public static extern int GetWindowText(IntPtr hWnd, StringBuilder lpString, int nMaxCount);
+
+        [DllImport("user32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+        public static extern int GetWindowTextLength(IntPtr hWnd);
     }
 
     private sealed class WordApplicationHandle
