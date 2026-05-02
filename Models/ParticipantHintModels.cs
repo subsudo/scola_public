@@ -193,7 +193,7 @@ public sealed class ParticipantHintEditorItem : INotifyPropertyChanged
     public string Text
     {
         get => _text;
-        set => SetField(ref _text, LimitText(value));
+        set => SetField(ref _text, LimitTextLength(value ?? string.Empty));
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;
@@ -230,7 +230,7 @@ public sealed class ParticipantHintEditorItem : INotifyPropertyChanged
                 Month = string.Empty,
                 Subject = string.Empty,
                 Note = string.Empty,
-                Text = LimitText(Text)
+                Text = NormalizeTextForStorage(Text)
             },
             UpdatedAtUtc = DateTime.UtcNow,
             UpdatedBy = updatedBy
@@ -261,12 +261,16 @@ public sealed class ParticipantHintEditorItem : INotifyPropertyChanged
                || DateTime.TryParse(value, CultureInfo.CurrentCulture, DateTimeStyles.None, out date);
     }
 
-    private static string LimitText(string value)
+    private static string LimitTextLength(string value)
     {
-        var trimmed = value.Trim();
-        return trimmed.Length <= MaxNoteTextLength
-            ? trimmed
-            : trimmed[..MaxNoteTextLength];
+        return value.Length <= MaxNoteTextLength
+            ? value
+            : value[..MaxNoteTextLength];
+    }
+
+    private static string NormalizeTextForStorage(string value)
+    {
+        return LimitTextLength(value).Trim();
     }
 
     private static string NormalizeMonthInput(string value)

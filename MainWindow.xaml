@@ -856,25 +856,94 @@
                                 <TextBlock Foreground="{DynamicResource Brush.SecondaryText}"
                                            FontSize="{DynamicResource Density.SecondaryFontSize}"
                                            Text="{Binding Initials}" />
-                                <ItemsControl Margin="6,0,0,0"
-                                              VerticalAlignment="Center"
-                                              ItemsSource="{Binding HintMarkers}"
-                                              Visibility="{Binding HasActiveHints, Converter={StaticResource BoolToVisibility}}">
-                                    <ItemsControl.ItemsPanel>
-                                        <ItemsPanelTemplate>
-                                            <StackPanel Orientation="Horizontal" />
-                                        </ItemsPanelTemplate>
-                                    </ItemsControl.ItemsPanel>
-                                    <ItemsControl.ItemTemplate>
-                                        <DataTemplate>
-                                            <Ellipse Width="6"
-                                                     Height="6"
-                                                     Margin="0,0,4,0"
-                                                     Fill="{Binding MarkerColor}"
-                                                     ToolTip="{Binding Text}" />
-                                        </DataTemplate>
-                                    </ItemsControl.ItemTemplate>
-                                </ItemsControl>
+                                <Grid Margin="6,1,0,0"
+                                      VerticalAlignment="Center"
+                                      Visibility="{Binding HasActiveHints, Converter={StaticResource BoolToVisibility}}">
+                                    <ItemsControl ItemsSource="{Binding HintMarkers}"
+                                                  Visibility="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=ShowHintDotMarkers, Converter={StaticResource BoolToVisibility}}">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate>
+                                                <StackPanel Orientation="Horizontal" />
+                                            </ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Ellipse Width="6"
+                                                         Height="6"
+                                                         Margin="0,1,4,0"
+                                                         Fill="{Binding MarkerColor}"
+                                                         ToolTip="{Binding Text}" />
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+
+                                    <ItemsControl ItemsSource="{Binding HintMarkers}"
+                                                  Visibility="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=ShowHintGlossDotMarkers, Converter={StaticResource BoolToVisibility}}">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate>
+                                                <StackPanel Orientation="Horizontal" />
+                                            </ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Grid Width="8"
+                                                      Height="8"
+                                                      Margin="0,1,4,0"
+                                                      ToolTip="{Binding Text}">
+                                                    <Ellipse Fill="{Binding MarkerColor}" />
+                                                    <Ellipse Width="3"
+                                                             Height="3"
+                                                             HorizontalAlignment="Center"
+                                                             VerticalAlignment="Center"
+                                                             Fill="#FFFDF8"
+                                                             Opacity="0.74" />
+                                                </Grid>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+
+                                    <ItemsControl ItemsSource="{Binding HintMarkers}"
+                                                  Visibility="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=ShowHintBarMarkers, Converter={StaticResource BoolToVisibility}}">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate>
+                                                <StackPanel Orientation="Horizontal" />
+                                            </ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Border Width="3"
+                                                        Height="10"
+                                                        Margin="0,0,4,0"
+                                                        Background="{Binding MarkerColor}"
+                                                        CornerRadius="1.5"
+                                                        ToolTip="{Binding Text}" />
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+
+                                    <ItemsControl ItemsSource="{Binding HintMarkers}"
+                                                  Visibility="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=ShowHintMiniPillMarkers, Converter={StaticResource BoolToVisibility}}">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate>
+                                                <StackPanel Orientation="Horizontal" />
+                                            </ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Border Padding="4,0"
+                                                        Margin="0,0,3,0"
+                                                        Background="{Binding PillBackground}"
+                                                        CornerRadius="4"
+                                                        ToolTip="{Binding Text}">
+                                                    <TextBlock FontSize="8.5"
+                                                               FontWeight="Bold"
+                                                               Foreground="{Binding PillForeground}"
+                                                               Text="{Binding Code}" />
+                                                </Border>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </Grid>
                             </StackPanel>
                             <TextBlock Foreground="{DynamicResource Brush.SecondaryText}"
                                        FontSize="{DynamicResource Density.SecondaryFontSize}"
@@ -1005,49 +1074,47 @@
                                     </Border>
                                 </StackPanel>
 
-                                <Grid Grid.Column="2">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="50" />
-                                        <ColumnDefinition Width="*" />
-                                    </Grid.ColumnDefinitions>
-                                    <TextBlock Grid.Column="0"
-                                               Margin="0,2,0,0"
+                                <StackPanel Grid.Column="2">
+                                    <TextBlock Margin="0,2,0,4"
                                                FontSize="9.5"
                                                FontWeight="SemiBold"
                                                Foreground="{DynamicResource Brush.SecondaryText}"
                                                Text="Hinweise" />
-                                    <StackPanel Grid.Column="1">
-                                        <ItemsControl ItemsSource="{Binding ActiveHints}"
-                                                      Visibility="{Binding HasActiveHints, Converter={StaticResource BoolToVisibility}}">
-                                            <ItemsControl.ItemTemplate>
-                                                <DataTemplate>
-                                                    <Border Style="{StaticResource ParticipantInfoPillStyle}"
-                                                            Margin="0,0,0,4"
-                                                            HorizontalAlignment="Left"
-                                                            Background="{Binding PillBackground}">
-                                                        <StackPanel Orientation="Horizontal"
-                                                                    MaxWidth="108">
-                                                            <TextBlock FontSize="9.5"
-                                                                       FontWeight="Bold"
-                                                                       Foreground="{Binding PillForeground}"
-                                                                       Text="{Binding Code}" />
-                                                            <TextBlock FontSize="9.5"
-                                                                       Margin="4,0,0,0"
-                                                                       Foreground="{Binding PillForeground}"
-                                                                       Text="{Binding Value}"
-                                                                       TextWrapping="Wrap" />
-                                                        </StackPanel>
-                                                    </Border>
-                                                </DataTemplate>
-                                            </ItemsControl.ItemTemplate>
-                                        </ItemsControl>
-                                        <Button Style="{StaticResource SubtleTextButtonStyle}"
-                                                Content="Bearbeiten"
-                                                ToolTip="Hinweise bearbeiten"
-                                                Click="EditHintsButton_OnClick"
-                                                CommandParameter="{Binding}" />
-                                    </StackPanel>
-                                </Grid>
+                                    <ItemsControl ItemsSource="{Binding ActiveHints}"
+                                                  Visibility="{Binding HasActiveHints, Converter={StaticResource BoolToVisibility}}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Border Style="{StaticResource ParticipantInfoPillStyle}"
+                                                        Margin="-6,0,0,4"
+                                                        HorizontalAlignment="Left"
+                                                        Background="{Binding PillBackground}"
+                                                        ToolTip="{Binding Text}">
+                                                    <Grid MaxWidth="156">
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="28" />
+                                                            <ColumnDefinition Width="*" />
+                                                        </Grid.ColumnDefinitions>
+                                                        <TextBlock Grid.Column="0"
+                                                                   FontSize="9.5"
+                                                                   FontWeight="Bold"
+                                                                   Foreground="{Binding PillForeground}"
+                                                                   Text="{Binding Code}" />
+                                                        <TextBlock Grid.Column="1"
+                                                                   FontSize="9.5"
+                                                                   Foreground="{Binding PillForeground}"
+                                                                   Text="{Binding Value}"
+                                                                   TextWrapping="Wrap" />
+                                                    </Grid>
+                                                </Border>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                    <Button Style="{StaticResource SubtleTextButtonStyle}"
+                                            Content="Bearbeiten"
+                                            ToolTip="Hinweise bearbeiten"
+                                            Click="EditHintsButton_OnClick"
+                                            CommandParameter="{Binding}" />
+                                </StackPanel>
                             </Grid>
 
                             <Border Grid.Column="3"

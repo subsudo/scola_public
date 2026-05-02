@@ -425,6 +425,35 @@
                                                  IsChecked="{Binding IsCompactDensity, Mode=TwoWay}" />
                                 </UniformGrid>
                             </Border>
+                            <TextBlock Margin="0,2,0,5"
+                                       Foreground="{DynamicResource Brush.SecondaryText}"
+                                       FontSize="11"
+                                       Text="Hinweis-Marker" />
+                            <Border Background="{DynamicResource Brush.InputBg}"
+                                    BorderBrush="{DynamicResource Brush.Border}"
+                                    BorderThickness="1"
+                                    CornerRadius="8"
+                                    Padding="2"
+                                    Margin="0,0,0,8">
+                                <UniformGrid Columns="4">
+                                    <RadioButton Content="Punkte"
+                                                 GroupName="HintMarkerMode"
+                                                 Style="{StaticResource ThemeOptionStyle}"
+                                                 IsChecked="{Binding IsHintMarkerDot, Mode=TwoWay}" />
+                                    <RadioButton Content="Glanz"
+                                                 GroupName="HintMarkerMode"
+                                                 Style="{StaticResource ThemeOptionStyle}"
+                                                 IsChecked="{Binding IsHintMarkerGlossDot, Mode=TwoWay}" />
+                                    <RadioButton Content="Striche"
+                                                 GroupName="HintMarkerMode"
+                                                 Style="{StaticResource ThemeOptionStyle}"
+                                                 IsChecked="{Binding IsHintMarkerBar, Mode=TwoWay}" />
+                                    <RadioButton Content="Pills"
+                                                 GroupName="HintMarkerMode"
+                                                 Style="{StaticResource ThemeOptionStyle}"
+                                                 IsChecked="{Binding IsHintMarkerMiniPill, Mode=TwoWay}" />
+                                </UniformGrid>
+                            </Border>
                         </StackPanel>
                     </Border>
 

@@ -155,6 +155,7 @@ public partial class App : System.Windows.Application
         var prefsService = new UserPrefsService(UserPrefsPath);
         UserPrefs = prefsService.Load();
         UserPrefs.DisplayDensity = Models.DisplayDensityMode.Normalize(UserPrefs.DisplayDensity);
+        UserPrefs.ParticipantHintMarkerStyle = Models.ParticipantHintMarkerStyleMode.Normalize(UserPrefs.ParticipantHintMarkerStyle);
         AppLogger.SetDebugEnabled(UserPrefs.EnableDebugLogging);
         ApplyTheme(UserPrefs.IsDarkTheme);
 
