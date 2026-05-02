@@ -3421,6 +3421,14 @@ public partial class MainWindow : Window
             return participant.DocumentPath;
         }
 
+        if (string.IsNullOrWhiteSpace(participant.MatchedFolderPath) || !Directory.Exists(participant.MatchedFolderPath))
+        {
+            participant.DocumentPath = string.Empty;
+            participant.Initials = string.Empty;
+            ResetParticipantHeaderMetadata(participant);
+            return null;
+        }
+
         var docs = _wordService.FindVerlaufsakteCandidates(participant.MatchedFolderPath!, _config.VerlaufsakteKeyword);
         string? selected = null;
 
@@ -3696,7 +3704,7 @@ public partial class MainWindow : Window
 
     private void RefreshParticipantHintsForParticipant(Participant participant)
     {
-        var documentPath = ResolveDocumentPathForParticipant(participant);
+        var documentPath = participant.DocumentPath;
         if (string.IsNullOrWhiteSpace(documentPath) || !File.Exists(documentPath))
         {
             participant.ActiveHints = Array.Empty<ParticipantHintDisplay>();
