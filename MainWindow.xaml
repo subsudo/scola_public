@@ -736,14 +736,14 @@
                 <Setter.Value>
                     <ControlTemplate TargetType="ScrollViewer">
                         <Grid Background="Transparent"
-                              ClipToBounds="True">
+                              ClipToBounds="False">
                             <ScrollContentPresenter x:Name="PART_ScrollContentPresenter"
                                                     Margin="0,0,5,0"
                                                     CanContentScroll="{TemplateBinding CanContentScroll}" />
 
                             <ScrollBar x:Name="PART_VerticalScrollBar"
                                        Width="8"
-                                       Margin="0,2,1,2"
+                                       Margin="0,2,-6,2"
                                        Panel.ZIndex="1"
                                        HorizontalAlignment="Right"
                                        VerticalAlignment="Stretch"
@@ -1020,45 +1020,39 @@
                                                         HorizontalAlignment="Left"
                                                         Background="{Binding PillBackground}"
                                                         ToolTip="{Binding Text}">
-                                                    <Grid MaxWidth="95">
-                                                        <Grid.ColumnDefinitions>
-                                                            <ColumnDefinition Width="28" />
-                                                            <ColumnDefinition Width="*" />
-                                                        </Grid.ColumnDefinitions>
-                                                        <TextBlock Grid.Column="0"
-                                                                   FontSize="9.5"
-                                                                   FontWeight="Bold"
-                                                                   Foreground="{Binding PillForeground}"
-                                                                   Text="{Binding Code}">
-                                                            <TextBlock.Style>
-                                                                <Style TargetType="TextBlock">
-                                                                    <Setter Property="Visibility" Value="Visible" />
-                                                                    <Style.Triggers>
-                                                                        <DataTrigger Binding="{Binding Code}" Value="">
-                                                                            <Setter Property="Visibility" Value="Collapsed" />
-                                                                        </DataTrigger>
-                                                                    </Style.Triggers>
-                                                                </Style>
-                                                            </TextBlock.Style>
-                                                        </TextBlock>
-                                                        <TextBlock Grid.Column="1"
+                                                    <Grid>
+                                                        <Grid x:Name="CodedHintPillContent"
+                                                              MaxWidth="95">
+                                                            <Grid.ColumnDefinitions>
+                                                                <ColumnDefinition Width="28" />
+                                                                <ColumnDefinition Width="*" />
+                                                            </Grid.ColumnDefinitions>
+                                                            <TextBlock Grid.Column="0"
+                                                                       FontSize="9.5"
+                                                                       FontWeight="Bold"
+                                                                       Foreground="{Binding PillForeground}"
+                                                                       Text="{Binding Code}" />
+                                                            <TextBlock Grid.Column="1"
+                                                                       FontSize="9.5"
+                                                                       Foreground="{Binding PillForeground}"
+                                                                       Text="{Binding Value}"
+                                                                       TextWrapping="Wrap" />
+                                                        </Grid>
+                                                        <TextBlock x:Name="FreeHintPillContent"
+                                                                   MaxWidth="95"
                                                                    FontSize="9.5"
                                                                    Foreground="{Binding PillForeground}"
                                                                    Text="{Binding Value}"
-                                                                   TextWrapping="Wrap">
-                                                            <TextBlock.Style>
-                                                                <Style TargetType="TextBlock">
-                                                                    <Setter Property="Grid.Column" Value="1" />
-                                                                    <Style.Triggers>
-                                                                        <DataTrigger Binding="{Binding Code}" Value="">
-                                                                            <Setter Property="Grid.Column" Value="0" />
-                                                                        </DataTrigger>
-                                                                    </Style.Triggers>
-                                                                </Style>
-                                                            </TextBlock.Style>
-                                                        </TextBlock>
+                                                                   TextWrapping="Wrap"
+                                                                   Visibility="Collapsed" />
                                                     </Grid>
                                                 </Border>
+                                                <DataTemplate.Triggers>
+                                                    <DataTrigger Binding="{Binding Code}" Value="">
+                                                        <Setter TargetName="CodedHintPillContent" Property="Visibility" Value="Collapsed" />
+                                                        <Setter TargetName="FreeHintPillContent" Property="Visibility" Value="Visible" />
+                                                    </DataTrigger>
+                                                </DataTemplate.Triggers>
                                             </DataTemplate>
                                         </ItemsControl.ItemTemplate>
                                     </ItemsControl>
