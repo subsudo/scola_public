@@ -158,7 +158,7 @@ public sealed class ParticipantHintEditorItem : INotifyPropertyChanged
     }
 
     public bool IsActive => string.Equals(Status, ParticipantHintStatuses.Active, StringComparison.OrdinalIgnoreCase);
-    public bool ShowDate => true;
+    public bool ShowDate => Type != ParticipantHintTypes.Free;
     public bool ShowMonth => false;
     public bool ShowSubject => false;
     public bool ShowText => Type == ParticipantHintTypes.Free;
@@ -226,7 +226,7 @@ public sealed class ParticipantHintEditorItem : INotifyPropertyChanged
             Status = IsActive ? ParticipantHintStatuses.Active : ParticipantHintStatuses.Done,
             Details = new ParticipantHintDetails
             {
-                Date = NormalizeDateInput(Date),
+                Date = Type == ParticipantHintTypes.Free ? string.Empty : NormalizeDateInput(Date),
                 Month = string.Empty,
                 Subject = string.Empty,
                 Note = string.Empty,

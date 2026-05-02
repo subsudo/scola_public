@@ -27,7 +27,6 @@ public sealed class SettingsWindowModel
     public bool ShowBtnEintragBi { get; set; }
     public bool IsDarkTheme { get; set; }
     public string DisplayDensity { get; set; } = DisplayDensityMode.Standard;
-    public string ParticipantHintMarkerStyle { get; set; } = ParticipantHintMarkerStyleMode.Dot;
     public bool AutoPrefillOnEmptyClipboard { get; set; }
     public string DefaultEntryInitials { get; set; } = string.Empty;
     public bool EnableDebugLogging { get; set; }
@@ -52,7 +51,6 @@ public sealed class SettingsWindowResult
     public bool ShowBtnEintragBi { get; set; }
     public bool IsDarkTheme { get; set; }
     public string DisplayDensity { get; set; } = DisplayDensityMode.Standard;
-    public string ParticipantHintMarkerStyle { get; set; } = ParticipantHintMarkerStyleMode.Dot;
     public bool AutoPrefillOnEmptyClipboard { get; set; }
     public string DefaultEntryInitials { get; set; } = string.Empty;
     public bool EnableDebugLogging { get; set; }
@@ -87,7 +85,6 @@ public partial class SettingsWindow : Window, INotifyPropertyChanged
     private bool _enableWordLifecycleLogging;
     private bool _isDarkTheme;
     private string _displayDensity = DisplayDensityMode.Standard;
-    private string _participantHintMarkerStyle = ParticipantHintMarkerStyleMode.Dot;
     private bool _isSaving;
     private bool _isInitializing;
     private bool _isDirty;
@@ -279,72 +276,6 @@ public partial class SettingsWindow : Window, INotifyPropertyChanged
         }
     }
 
-    public string ParticipantHintMarkerStyle
-    {
-        get => _participantHintMarkerStyle;
-        set
-        {
-            var normalized = ParticipantHintMarkerStyleMode.Normalize(value);
-            if (!SetField(ref _participantHintMarkerStyle, normalized))
-            {
-                return;
-            }
-
-            OnPropertyChanged(nameof(IsHintMarkerDot));
-            OnPropertyChanged(nameof(IsHintMarkerGlossDot));
-            OnPropertyChanged(nameof(IsHintMarkerBar));
-            OnPropertyChanged(nameof(IsHintMarkerMiniPill));
-        }
-    }
-
-    public bool IsHintMarkerDot
-    {
-        get => ParticipantHintMarkerStyle == ParticipantHintMarkerStyleMode.Dot;
-        set
-        {
-            if (value)
-            {
-                ParticipantHintMarkerStyle = ParticipantHintMarkerStyleMode.Dot;
-            }
-        }
-    }
-
-    public bool IsHintMarkerGlossDot
-    {
-        get => ParticipantHintMarkerStyle == ParticipantHintMarkerStyleMode.GlossDot;
-        set
-        {
-            if (value)
-            {
-                ParticipantHintMarkerStyle = ParticipantHintMarkerStyleMode.GlossDot;
-            }
-        }
-    }
-
-    public bool IsHintMarkerBar
-    {
-        get => ParticipantHintMarkerStyle == ParticipantHintMarkerStyleMode.Bar;
-        set
-        {
-            if (value)
-            {
-                ParticipantHintMarkerStyle = ParticipantHintMarkerStyleMode.Bar;
-            }
-        }
-    }
-
-    public bool IsHintMarkerMiniPill
-    {
-        get => ParticipantHintMarkerStyle == ParticipantHintMarkerStyleMode.MiniPill;
-        set
-        {
-            if (value)
-            {
-                ParticipantHintMarkerStyle = ParticipantHintMarkerStyleMode.MiniPill;
-            }
-        }
-    }
-
     public bool IsDirty
     {
         get => _isDirty;
@@ -462,7 +393,6 @@ public partial class SettingsWindow : Window, INotifyPropertyChanged
         EnableWordLifecycleLogging = model.EnableWordLifecycleLogging;
         IsDarkTheme = model.IsDarkTheme;
         DisplayDensity = model.DisplayDensity;
-        ParticipantHintMarkerStyle = model.ParticipantHintMarkerStyle;
         _isInitializing = false;
 
         NotifyPathStateChanged();
@@ -513,7 +443,6 @@ public partial class SettingsWindow : Window, INotifyPropertyChanged
             ShowBtnEintragBi = source.ShowBtnEintragBi,
             IsDarkTheme = source.IsDarkTheme,
             DisplayDensity = DisplayDensityMode.Normalize(source.DisplayDensity),
-            ParticipantHintMarkerStyle = ParticipantHintMarkerStyleMode.Normalize(source.ParticipantHintMarkerStyle),
             AutoPrefillOnEmptyClipboard = source.AutoPrefillOnEmptyClipboard,
             DefaultEntryInitials = (source.DefaultEntryInitials ?? string.Empty).Trim(),
             EnableDebugLogging = source.EnableDebugLogging,
@@ -566,7 +495,6 @@ public partial class SettingsWindow : Window, INotifyPropertyChanged
             ShowBtnEintragBi = ShowBtnEintragBi,
             IsDarkTheme = IsDarkTheme,
             DisplayDensity = DisplayDensity,
-            ParticipantHintMarkerStyle = ParticipantHintMarkerStyle,
             AutoPrefillOnEmptyClipboard = AutoPrefillOnEmptyClipboard,
             DefaultEntryInitials = (DefaultEntryInitials ?? string.Empty).Trim(),
             EnableDebugLogging = EnableDebugLogging,
@@ -592,7 +520,6 @@ public partial class SettingsWindow : Window, INotifyPropertyChanged
                && left.ShowBtnEintragBi == right.ShowBtnEintragBi
                && left.IsDarkTheme == right.IsDarkTheme
                && DisplayDensityMode.Normalize(left.DisplayDensity) == DisplayDensityMode.Normalize(right.DisplayDensity)
-               && ParticipantHintMarkerStyleMode.Normalize(left.ParticipantHintMarkerStyle) == ParticipantHintMarkerStyleMode.Normalize(right.ParticipantHintMarkerStyle)
                && left.AutoPrefillOnEmptyClipboard == right.AutoPrefillOnEmptyClipboard
                && string.Equals((left.DefaultEntryInitials ?? string.Empty).Trim(), (right.DefaultEntryInitials ?? string.Empty).Trim(), StringComparison.Ordinal)
                && left.EnableDebugLogging == right.EnableDebugLogging
@@ -778,7 +705,6 @@ public partial class SettingsWindow : Window, INotifyPropertyChanged
             ShowBtnEintragBi = ShowBtnEintragBi,
             IsDarkTheme = IsDarkTheme,
             DisplayDensity = DisplayDensity,
-            ParticipantHintMarkerStyle = ParticipantHintMarkerStyle,
             AutoPrefillOnEmptyClipboard = AutoPrefillOnEmptyClipboard,
             DefaultEntryInitials = (DefaultEntryInitials ?? string.Empty).Trim(),
             EnableDebugLogging = EnableDebugLogging,

@@ -121,7 +121,7 @@
                             <ColumnDefinition Width="12" />
                             <ColumnDefinition Width="*" />
                         </Grid.ColumnDefinitions>
-                        <StackPanel Grid.Column="0">
+                        <StackPanel Grid.Column="0" Visibility="{Binding ShowDate, Converter={StaticResource BoolToVisibility}}">
                             <TextBlock Style="{StaticResource HintFieldLabel}" Text="Datum" />
                             <DatePicker Style="{StaticResource HintDatePicker}"
                                         SelectedDate="{Binding DateValue, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />

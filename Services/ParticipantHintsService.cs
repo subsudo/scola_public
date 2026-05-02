@@ -246,7 +246,7 @@ public sealed class ParticipantHintsService
         var details = entry.Details;
         return entry.Type switch
         {
-            ParticipantHintTypes.Free => string.IsNullOrWhiteSpace(details.Text) && string.IsNullOrWhiteSpace(details.Date),
+            ParticipantHintTypes.Free => string.IsNullOrWhiteSpace(details.Text),
             ParticipantHintTypes.AmReport => string.IsNullOrWhiteSpace(details.Date) && string.IsNullOrWhiteSpace(details.Month),
             ParticipantHintTypes.Exit => string.IsNullOrWhiteSpace(details.Date),
             ParticipantHintTypes.StellwerkTest => string.IsNullOrWhiteSpace(details.Date),
@@ -272,7 +272,7 @@ public sealed class ParticipantHintsService
         {
             Type = entry.Type,
             Text = text,
-            Code = code,
+            Code = entry.Type == ParticipantHintTypes.Free ? string.Empty : code,
             Value = value,
             MarkerColor = ResolveMarkerColor(entry.Type),
             PillBackground = ResolvePillBackground(entry.Type),
@@ -338,7 +338,7 @@ public sealed class ParticipantHintsService
 
     private static bool IsOverdue(ParticipantHintEntry entry)
     {
-        if (entry.Type is not (ParticipantHintTypes.Exit or ParticipantHintTypes.AmReport or ParticipantHintTypes.StellwerkTest or ParticipantHintTypes.Free))
+        if (entry.Type is not (ParticipantHintTypes.Exit or ParticipantHintTypes.AmReport or ParticipantHintTypes.StellwerkTest))
         {
             return false;
         }
@@ -348,7 +348,7 @@ public sealed class ParticipantHintsService
 
     private static DateTime? GetEntrySortDate(ParticipantHintEntry entry)
     {
-        if (entry.Type is ParticipantHintTypes.Exit or ParticipantHintTypes.AmReport or ParticipantHintTypes.StellwerkTest or ParticipantHintTypes.Free
+        if (entry.Type is ParticipantHintTypes.Exit or ParticipantHintTypes.AmReport or ParticipantHintTypes.StellwerkTest
             && TryParseDate(entry.Details.Date, out var date))
         {
             return date.Date;

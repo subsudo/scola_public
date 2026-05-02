@@ -123,10 +123,6 @@ public partial class MainWindow : Window
     public static readonly DependencyProperty ShowBtnBeProperty = RegisterLayoutProperty(nameof(ShowBtnBe), false);
     public static readonly DependencyProperty ShowBtnEintragBiProperty = RegisterLayoutProperty(nameof(ShowBtnEintragBi), false);
     public static readonly DependencyProperty IsDarkThemeProperty = RegisterLayoutProperty(nameof(IsDarkTheme), true);
-    public static readonly DependencyProperty ShowHintDotMarkersProperty = RegisterLayoutProperty(nameof(ShowHintDotMarkers), true);
-    public static readonly DependencyProperty ShowHintGlossDotMarkersProperty = RegisterLayoutProperty(nameof(ShowHintGlossDotMarkers), false);
-    public static readonly DependencyProperty ShowHintBarMarkersProperty = RegisterLayoutProperty(nameof(ShowHintBarMarkers), false);
-    public static readonly DependencyProperty ShowHintMiniPillMarkersProperty = RegisterLayoutProperty(nameof(ShowHintMiniPillMarkers), false);
 
     public bool ShowParticipantInitials
     {
@@ -188,30 +184,6 @@ public partial class MainWindow : Window
         set => SetValue(IsDarkThemeProperty, value);
     }
 
-    public bool ShowHintDotMarkers
-    {
-        get => (bool)GetValue(ShowHintDotMarkersProperty);
-        set => SetValue(ShowHintDotMarkersProperty, value);
-    }
-
-    public bool ShowHintGlossDotMarkers
-    {
-        get => (bool)GetValue(ShowHintGlossDotMarkersProperty);
-        set => SetValue(ShowHintGlossDotMarkersProperty, value);
-    }
-
-    public bool ShowHintBarMarkers
-    {
-        get => (bool)GetValue(ShowHintBarMarkersProperty);
-        set => SetValue(ShowHintBarMarkersProperty, value);
-    }
-
-    public bool ShowHintMiniPillMarkers
-    {
-        get => (bool)GetValue(ShowHintMiniPillMarkersProperty);
-        set => SetValue(ShowHintMiniPillMarkersProperty, value);
-    }
-
     public MainWindow()
     {
         InitializeComponent();
@@ -266,7 +238,6 @@ public partial class MainWindow : Window
         ShowBtnBe = App.UserPrefs.ShowBtnBe;
         ShowBtnEintragBi = App.UserPrefs.ShowBtnEintragBi;
         IsDarkTheme = App.UserPrefs.IsDarkTheme;
-        ApplyParticipantHintMarkerStyle(App.UserPrefs.ParticipantHintMarkerStyle);
 
         DataContext = this;
         RestoreWindowBoundsFromPrefs();
@@ -1405,15 +1376,6 @@ public partial class MainWindow : Window
         Resources[key] = value;
     }
 
-    private void ApplyParticipantHintMarkerStyle(string? style)
-    {
-        var normalized = ParticipantHintMarkerStyleMode.Normalize(style);
-        ShowHintDotMarkers = normalized == ParticipantHintMarkerStyleMode.Dot;
-        ShowHintGlossDotMarkers = normalized == ParticipantHintMarkerStyleMode.GlossDot;
-        ShowHintBarMarkers = normalized == ParticipantHintMarkerStyleMode.Bar;
-        ShowHintMiniPillMarkers = normalized == ParticipantHintMarkerStyleMode.MiniPill;
-    }
-
     private static DisplayDensityProfile CreateDisplayDensityProfile(string? mode)
     {
         return DisplayDensityMode.Normalize(mode) switch
@@ -1525,8 +1487,7 @@ public partial class MainWindow : Window
             DefaultEntryInitials = App.UserPrefs.DefaultEntryInitials,
             EnableDebugLogging = App.UserPrefs.EnableDebugLogging,
             EnableWordLifecycleLogging = App.UserPrefs.EnableWordLifecycleLogging,
-            DisplayDensity = App.UserPrefs.DisplayDensity,
-            ParticipantHintMarkerStyle = App.UserPrefs.ParticipantHintMarkerStyle
+            DisplayDensity = App.UserPrefs.DisplayDensity
         };
 
         var dialog = new SettingsWindow(model)
@@ -1571,7 +1532,6 @@ public partial class MainWindow : Window
         ShowBtnEintragBi = result.ShowBtnEintragBi;
         IsDarkTheme = result.IsDarkTheme;
         ApplyDisplayDensity(result.DisplayDensity);
-        ApplyParticipantHintMarkerStyle(result.ParticipantHintMarkerStyle);
 
         App.UserPrefs.ShowBtnOdoo = ShowBtnOdoo;
         App.UserPrefs.ShowBtnOrdner = ShowBtnOrdner;
@@ -1583,7 +1543,6 @@ public partial class MainWindow : Window
         App.UserPrefs.ShowBtnEintragBi = ShowBtnEintragBi;
         App.UserPrefs.IsDarkTheme = IsDarkTheme;
         App.UserPrefs.DisplayDensity = DisplayDensityMode.Normalize(result.DisplayDensity);
-        App.UserPrefs.ParticipantHintMarkerStyle = ParticipantHintMarkerStyleMode.Normalize(result.ParticipantHintMarkerStyle);
         App.UserPrefs.AutoPrefillOnEmptyClipboard = result.AutoPrefillOnEmptyClipboard;
         App.UserPrefs.DefaultEntryInitials = result.DefaultEntryInitials;
         App.UserPrefs.EnableDebugLogging = result.EnableDebugLogging;

@@ -12,7 +12,6 @@ public class UserPrefs
     public bool ShowBtnEintragBi { get; set; } = false;
     public bool IsDarkTheme { get; set; } = false;
     public string DisplayDensity { get; set; } = DisplayDensityMode.Standard;
-    public string ParticipantHintMarkerStyle { get; set; } = ParticipantHintMarkerStyleMode.Dot;
     public bool AutoPrefillOnEmptyClipboard { get; set; } = false;
     public string DefaultEntryInitials { get; set; } = string.Empty;
     public bool EnableDebugLogging { get; set; }
@@ -22,23 +21,4 @@ public class UserPrefs
     public double? ExpandedWindowHeight { get; set; }
     public bool WindowWasMaximized { get; set; }
     public bool IsCollapsed { get; set; }
-}
-
-public static class ParticipantHintMarkerStyleMode
-{
-    public const string Dot = "dot";
-    public const string GlossDot = "gloss_dot";
-    public const string Bar = "bar";
-    public const string MiniPill = "mini_pill";
-
-    public static string Normalize(string? value)
-    {
-        return value switch
-        {
-            GlossDot => GlossDot,
-            Bar => Bar,
-            MiniPill => MiniPill,
-            _ => Dot
-        };
-    }
 }
