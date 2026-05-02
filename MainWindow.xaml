@@ -1020,7 +1020,7 @@
                                                         HorizontalAlignment="Left"
                                                         Background="{Binding PillBackground}"
                                                         ToolTip="{Binding Text}">
-                                                    <Grid MaxWidth="146">
+                                                    <Grid MaxWidth="95">
                                                         <Grid.ColumnDefinitions>
                                                             <ColumnDefinition Width="28" />
                                                             <ColumnDefinition Width="*" />
@@ -1052,7 +1052,6 @@
                                                                     <Style.Triggers>
                                                                         <DataTrigger Binding="{Binding Code}" Value="">
                                                                             <Setter Property="Grid.Column" Value="0" />
-                                                                            <Setter Property="Grid.ColumnSpan" Value="2" />
                                                                         </DataTrigger>
                                                                     </Style.Triggers>
                                                                 </Style>

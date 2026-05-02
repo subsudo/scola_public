@@ -310,7 +310,7 @@ public sealed class ParticipantHintsService
             ParticipantHintTypes.Exit => "#D1493F",
             ParticipantHintTypes.AmReport => "#2E76D0",
             ParticipantHintTypes.StellwerkTest => "#4D8D3E",
-            _ => "#78716C"
+            _ => "#C7A126"
         };
     }
 
@@ -321,7 +321,7 @@ public sealed class ParticipantHintsService
             ParticipantHintTypes.Exit => "#F3B3AD",
             ParticipantHintTypes.AmReport => "#B7D4F6",
             ParticipantHintTypes.StellwerkTest => "#BFE2B9",
-            _ => "#D8D6D2"
+            _ => "#F1D875"
         };
     }
 
@@ -332,7 +332,7 @@ public sealed class ParticipantHintsService
             ParticipantHintTypes.Exit => "#6E1F1A",
             ParticipantHintTypes.AmReport => "#173F73",
             ParticipantHintTypes.StellwerkTest => "#24501F",
-            _ => "#292524"
+            _ => "#4D3B00"
         };
     }
 
