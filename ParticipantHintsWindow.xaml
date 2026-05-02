@@ -1,44 +1,96 @@
-<Window x:Class="VerlaufsakteApp.ParticipantHintsWindow"
+﻿<Window x:Class="VerlaufsakteApp.ParticipantHintsWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:models="clr-namespace:VerlaufsakteApp.Models"
         Title="{Binding WindowTitle}"
-        Width="660"
-        Height="640"
-        MinWidth="560"
-        MinHeight="500"
+        Width="520"
+        Height="600"
+        MinWidth="460"
+        MinHeight="460"
         WindowStartupLocation="CenterOwner"
-        Background="#202127"
-        Foreground="#EFECE4">
+        Background="#F6F2EA"
+        Foreground="#292524">
     <Window.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVisibility" />
-        <Style x:Key="HintFieldLabel" TargetType="TextBlock">
-            <Setter Property="Foreground" Value="#A8A29A" />
-            <Setter Property="FontSize" Value="11" />
-            <Setter Property="Margin" Value="0,6,0,2" />
+
+        <Style TargetType="ScrollBar">
+            <Setter Property="Width" Value="6" />
+            <Setter Property="MinWidth" Value="6" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ScrollBar">
+                        <Grid Background="Transparent">
+                            <Track x:Name="PART_Track" IsDirectionReversed="True">
+                                <Track.Thumb>
+                                    <Thumb>
+                                        <Thumb.Template>
+                                            <ControlTemplate TargetType="Thumb">
+                                                <Border Background="#C8BFB2" CornerRadius="3" Margin="1,0" />
+                                            </ControlTemplate>
+                                        </Thumb.Template>
+                                    </Thumb>
+                                </Track.Thumb>
+                            </Track>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="Orientation" Value="Horizontal">
+                    <Setter Property="Height" Value="6" />
+                    <Setter Property="Width" Value="Auto" />
+                </Trigger>
+            </Style.Triggers>
         </Style>
+
+        <Style x:Key="HintFieldLabel" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="#78716C" />
+            <Setter Property="FontSize" Value="10.5" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Margin" Value="0,6,0,3" />
+        </Style>
+
         <Style x:Key="HintTextBox" TargetType="TextBox">
-            <Setter Property="Background" Value="#2B2C33" />
-            <Setter Property="Foreground" Value="#F2EFE8" />
-            <Setter Property="BorderBrush" Value="#3D3E46" />
+            <Setter Property="Background" Value="#FFFDF8" />
+            <Setter Property="Foreground" Value="#292524" />
+            <Setter Property="BorderBrush" Value="#D4C8BA" />
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="Padding" Value="8,5" />
+            <Setter Property="TextWrapping" Value="Wrap" />
         </Style>
+
+        <Style x:Key="HintDatePicker" TargetType="DatePicker">
+            <Setter Property="Background" Value="#FFFDF8" />
+            <Setter Property="Foreground" Value="#292524" />
+            <Setter Property="BorderBrush" Value="#D4C8BA" />
+            <Setter Property="BorderThickness" Value="1" />
+        </Style>
+
         <Style x:Key="HintButton" TargetType="Button">
-            <Setter Property="MinHeight" Value="28" />
+            <Setter Property="MinHeight" Value="27" />
             <Setter Property="Padding" Value="10,4" />
             <Setter Property="Margin" Value="0,0,7,0" />
-            <Setter Property="Background" Value="#30313A" />
-            <Setter Property="Foreground" Value="#EFECE4" />
-            <Setter Property="BorderBrush" Value="#494A53" />
+            <Setter Property="Background" Value="#EEE7DC" />
+            <Setter Property="Foreground" Value="#292524" />
+            <Setter Property="BorderBrush" Value="#D4C8BA" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Cursor" Value="Hand" />
         </Style>
+
+        <Style x:Key="PrimaryHintButton" TargetType="Button" BasedOn="{StaticResource HintButton}">
+            <Setter Property="Background" Value="#D7E5CB" />
+            <Setter Property="BorderBrush" Value="#AFC99B" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+        </Style>
+
         <DataTemplate x:Key="ActiveHintTemplate" DataType="{x:Type models:ParticipantHintEditorItem}">
-            <Border Margin="0,0,0,10"
-                    Padding="12"
-                    Background="#282931"
-                    BorderBrush="#3D3E46"
+            <Border Margin="0,0,0,9"
+                    Padding="11"
+                    Background="#FFFDF8"
+                    BorderBrush="#DED4C7"
                     BorderThickness="1"
-                    CornerRadius="9">
+                    CornerRadius="8">
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />
@@ -51,7 +103,7 @@
 
                     <TextBlock Text="{Binding TypeLabel}"
                                FontWeight="SemiBold"
-                               Foreground="#F6F0DE" />
+                               Foreground="#292524" />
                     <StackPanel Grid.Column="1" Orientation="Horizontal">
                         <Button Style="{StaticResource HintButton}"
                                 Content="Erledigt"
@@ -65,46 +117,37 @@
 
                     <Grid Grid.Row="1" Grid.ColumnSpan="2" Margin="0,8,0,0">
                         <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="150" />
                             <ColumnDefinition Width="12" />
                             <ColumnDefinition Width="*" />
                         </Grid.ColumnDefinitions>
                         <StackPanel Grid.Column="0">
-                            <StackPanel Visibility="{Binding ShowDate, Converter={StaticResource BoolToVisibility}}">
-                                <TextBlock Style="{StaticResource HintFieldLabel}" Text="Datum (YYYY-MM-DD)" />
-                                <TextBox Style="{StaticResource HintTextBox}" Text="{Binding Date, UpdateSourceTrigger=PropertyChanged}" />
-                            </StackPanel>
-                            <StackPanel Visibility="{Binding ShowMonth, Converter={StaticResource BoolToVisibility}}">
-                                <TextBlock Style="{StaticResource HintFieldLabel}" Text="Monat (YYYY-MM)" />
-                                <TextBox Style="{StaticResource HintTextBox}" Text="{Binding Month, UpdateSourceTrigger=PropertyChanged}" />
-                            </StackPanel>
-                            <StackPanel Visibility="{Binding ShowSubject, Converter={StaticResource BoolToVisibility}}">
-                                <TextBlock Style="{StaticResource HintFieldLabel}" Text="Fach" />
-                                <TextBox Style="{StaticResource HintTextBox}" Text="{Binding Subject, UpdateSourceTrigger=PropertyChanged}" />
-                            </StackPanel>
+                            <TextBlock Style="{StaticResource HintFieldLabel}" Text="Datum" />
+                            <DatePicker Style="{StaticResource HintDatePicker}"
+                                        SelectedDate="{Binding DateValue, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
                         </StackPanel>
-                        <StackPanel Grid.Column="2">
-                            <StackPanel Visibility="{Binding ShowText, Converter={StaticResource BoolToVisibility}}">
-                                <TextBlock Style="{StaticResource HintFieldLabel}" Text="Text" />
-                                <TextBox Style="{StaticResource HintTextBox}" Text="{Binding Text, UpdateSourceTrigger=PropertyChanged}" />
-                            </StackPanel>
-                            <StackPanel Visibility="{Binding ShowNote, Converter={StaticResource BoolToVisibility}}">
-                                <TextBlock Style="{StaticResource HintFieldLabel}" Text="Notiz" />
-                                <TextBox Style="{StaticResource HintTextBox}" Text="{Binding Note, UpdateSourceTrigger=PropertyChanged}" />
-                            </StackPanel>
+                        <StackPanel Grid.Column="2" Visibility="{Binding ShowText, Converter={StaticResource BoolToVisibility}}">
+                            <TextBlock Style="{StaticResource HintFieldLabel}" Text="Notiz (max. 60 Zeichen)" />
+                            <TextBox Style="{StaticResource HintTextBox}"
+                                     MaxLength="60"
+                                     MinHeight="52"
+                                     AcceptsReturn="True"
+                                     VerticalScrollBarVisibility="Disabled"
+                                     Text="{Binding Text, UpdateSourceTrigger=PropertyChanged}" />
                         </StackPanel>
                     </Grid>
                 </Grid>
             </Border>
         </DataTemplate>
+
         <DataTemplate x:Key="DoneHintTemplate" DataType="{x:Type models:ParticipantHintEditorItem}">
-            <Border Margin="0,0,0,8"
-                    Padding="10"
-                    Background="#24252B"
-                    BorderBrush="#34353C"
+            <Border Margin="0,0,0,7"
+                    Padding="9"
+                    Background="#ECE6DC"
+                    BorderBrush="#D6CCC0"
                     BorderThickness="1"
-                    CornerRadius="8"
-                    Opacity="0.72">
+                    CornerRadius="7"
+                    Opacity="0.78">
                 <DockPanel>
                     <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
                         <Button Style="{StaticResource HintButton}"
@@ -124,7 +167,7 @@
         </DataTemplate>
     </Window.Resources>
 
-    <Grid Margin="18">
+    <Grid Margin="16">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
@@ -134,21 +177,21 @@
 
         <StackPanel>
             <TextBlock Text="{Binding WindowTitle}"
-                       FontSize="18"
+                       FontSize="17"
                        FontWeight="SemiBold" />
-            <TextBlock Text="Aktive Hinweise erscheinen auf der Kachel und im aufgeklappten Teilnehmerbereich."
-                       Foreground="#A8A29A"
-                       Margin="0,4,0,14" />
+            <TextBlock Text="Aktive Hinweise erscheinen als farbige Markierungen und kompakte Pills."
+                       Foreground="#78716C"
+                       Margin="0,4,0,12" />
         </StackPanel>
 
-        <WrapPanel Grid.Row="1" Margin="0,0,0,14">
+        <WrapPanel Grid.Row="1" Margin="0,0,0,12">
             <Button Style="{StaticResource HintButton}" Content="+ Austritt" Click="AddExitButton_OnClick" />
             <Button Style="{StaticResource HintButton}" Content="+ AM-Bericht" Click="AddAmButton_OnClick" />
-            <Button Style="{StaticResource HintButton}" Content="+ Stellwerk-Test" Click="AddStellwerkButton_OnClick" />
-            <Button Style="{StaticResource HintButton}" Content="+ Freier Hinweis" Click="AddFreeButton_OnClick" />
+            <Button Style="{StaticResource HintButton}" Content="+ Stellwerk" Click="AddStellwerkButton_OnClick" />
+            <Button Style="{StaticResource HintButton}" Content="+ Notiz" Click="AddFreeButton_OnClick" />
         </WrapPanel>
 
-        <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
+        <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
             <StackPanel>
                 <TextBlock Text="Aktive Hinweise"
                            FontWeight="SemiBold"
@@ -157,8 +200,8 @@
 
                 <TextBlock Text="Erledigte Hinweise"
                            FontWeight="SemiBold"
-                           Foreground="#A8A29A"
-                           Margin="0,14,0,8" />
+                           Foreground="#78716C"
+                           Margin="0,12,0,8" />
                 <ItemsControl ItemsSource="{Binding DoneItems}" ItemTemplate="{StaticResource DoneHintTemplate}" />
             </StackPanel>
         </ScrollViewer>
@@ -166,13 +209,12 @@
         <StackPanel Grid.Row="3"
                     Orientation="Horizontal"
                     HorizontalAlignment="Right"
-                    Margin="0,16,0,0">
+                    Margin="0,14,0,0">
             <Button Style="{StaticResource HintButton}"
                     Content="Abbrechen"
                     Click="CancelButton_OnClick" />
-            <Button Style="{StaticResource HintButton}"
+            <Button Style="{StaticResource PrimaryHintButton}"
                     Content="Speichern"
-                    FontWeight="SemiBold"
                     Click="SaveButton_OnClick" />
         </StackPanel>
     </Grid>

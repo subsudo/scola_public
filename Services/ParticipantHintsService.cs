@@ -247,9 +247,9 @@ public sealed class ParticipantHintsService
         return entry.Type switch
         {
             ParticipantHintTypes.Free => string.IsNullOrWhiteSpace(details.Text) && string.IsNullOrWhiteSpace(details.Date),
-            ParticipantHintTypes.AmReport => string.IsNullOrWhiteSpace(details.Month) && string.IsNullOrWhiteSpace(details.Note),
-            ParticipantHintTypes.Exit => string.IsNullOrWhiteSpace(details.Date) && string.IsNullOrWhiteSpace(details.Note),
-            ParticipantHintTypes.StellwerkTest => string.IsNullOrWhiteSpace(details.Date) && string.IsNullOrWhiteSpace(details.Subject) && string.IsNullOrWhiteSpace(details.Note),
+            ParticipantHintTypes.AmReport => string.IsNullOrWhiteSpace(details.Date) && string.IsNullOrWhiteSpace(details.Month),
+            ParticipantHintTypes.Exit => string.IsNullOrWhiteSpace(details.Date),
+            ParticipantHintTypes.StellwerkTest => string.IsNullOrWhiteSpace(details.Date),
             _ => false
         };
     }
@@ -257,20 +257,26 @@ public sealed class ParticipantHintsService
     private static ParticipantHintDisplay CreateDisplay(ParticipantHintEntry entry)
     {
         var details = entry.Details;
-        var text = entry.Type switch
+        var code = ResolveDisplayCode(entry.Type);
+        var value = entry.Type switch
         {
-            ParticipantHintTypes.Exit => BuildLabel("Austritt", FormatDate(details.Date), details.Note),
-            ParticipantHintTypes.AmReport => BuildLabel("AM", FormatMonth(details.Month), details.Note),
-            ParticipantHintTypes.StellwerkTest => BuildLabel("Stellwerk", FormatDate(details.Date), string.IsNullOrWhiteSpace(details.Subject) ? details.Note : details.Subject),
-            ParticipantHintTypes.Free => BuildLabel(details.Text, FormatDate(details.Date), string.Empty),
-            _ => details.Note
+            ParticipantHintTypes.Exit => FormatDate(details.Date),
+            ParticipantHintTypes.AmReport => FormatDateOrMonth(details.Date, details.Month),
+            ParticipantHintTypes.StellwerkTest => FormatDate(details.Date),
+            ParticipantHintTypes.Free => LimitNoteText(details.Text),
+            _ => string.Empty
         };
+        var text = BuildLabel(code, value, string.Empty);
 
         return new ParticipantHintDisplay
         {
             Type = entry.Type,
             Text = text,
-            MarkerColor = ResolveMarkerColor(entry.Type, IsOverdue(entry)),
+            Code = code,
+            Value = value,
+            MarkerColor = ResolveMarkerColor(entry.Type),
+            PillBackground = ResolvePillBackground(entry.Type),
+            PillForeground = ResolvePillForeground(entry.Type),
             IsOverdue = IsOverdue(entry),
             SortDate = GetEntrySortDate(entry)
         };
@@ -286,25 +292,53 @@ public sealed class ParticipantHintsService
         return string.Join(" ", parts);
     }
 
-    private static string ResolveMarkerColor(string type, bool isOverdue)
+    private static string ResolveDisplayCode(string type)
     {
-        if (isOverdue)
-        {
-            return "#D98263";
-        }
-
         return type switch
         {
-            ParticipantHintTypes.Exit => "#C46B5B",
-            ParticipantHintTypes.AmReport => "#5C9BA6",
-            ParticipantHintTypes.StellwerkTest => "#8FA866",
-            _ => "#A8A29A"
+            ParticipantHintTypes.Exit => "AT",
+            ParticipantHintTypes.AmReport => "AM",
+            ParticipantHintTypes.StellwerkTest => "STW",
+            _ => "N"
+        };
+    }
+
+    private static string ResolveMarkerColor(string type)
+    {
+        return type switch
+        {
+            ParticipantHintTypes.Exit => "#D1493F",
+            ParticipantHintTypes.AmReport => "#2E76D0",
+            ParticipantHintTypes.StellwerkTest => "#4D8D3E",
+            _ => "#78716C"
+        };
+    }
+
+    private static string ResolvePillBackground(string type)
+    {
+        return type switch
+        {
+            ParticipantHintTypes.Exit => "#F3B3AD",
+            ParticipantHintTypes.AmReport => "#B7D4F6",
+            ParticipantHintTypes.StellwerkTest => "#BFE2B9",
+            _ => "#D8D6D2"
+        };
+    }
+
+    private static string ResolvePillForeground(string type)
+    {
+        return type switch
+        {
+            ParticipantHintTypes.Exit => "#6E1F1A",
+            ParticipantHintTypes.AmReport => "#173F73",
+            ParticipantHintTypes.StellwerkTest => "#24501F",
+            _ => "#292524"
         };
     }
 
     private static bool IsOverdue(ParticipantHintEntry entry)
     {
-        if (entry.Type is not (ParticipantHintTypes.Exit or ParticipantHintTypes.StellwerkTest))
+        if (entry.Type is not (ParticipantHintTypes.Exit or ParticipantHintTypes.AmReport or ParticipantHintTypes.StellwerkTest or ParticipantHintTypes.Free))
         {
             return false;
         }
@@ -314,7 +348,7 @@ public sealed class ParticipantHintsService
 
     private static DateTime? GetEntrySortDate(ParticipantHintEntry entry)
     {
-        if (entry.Type is ParticipantHintTypes.Exit or ParticipantHintTypes.StellwerkTest or ParticipantHintTypes.Free
+        if (entry.Type is ParticipantHintTypes.Exit or ParticipantHintTypes.AmReport or ParticipantHintTypes.StellwerkTest or ParticipantHintTypes.Free
             && TryParseDate(entry.Details.Date, out var date))
         {
             return date.Date;
@@ -355,6 +389,22 @@ public sealed class ParticipantHintsService
         }
 
         return value.Trim();
+    }
+
+    private static string FormatDateOrMonth(string dateValue, string monthValue)
+    {
+        if (!string.IsNullOrWhiteSpace(dateValue))
+        {
+            return FormatDate(dateValue);
+        }
+
+        return FormatMonth(monthValue);
+    }
+
+    private static string LimitNoteText(string value)
+    {
+        var trimmed = value.Trim();
+        return trimmed.Length <= 60 ? trimmed : trimmed[..60];
     }
 
     private static bool TryParseDate(string value, out DateTime date)

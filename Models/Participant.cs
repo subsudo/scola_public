@@ -253,8 +253,8 @@ public class Participant : INotifyPropertyChanged
         {
             var normalized = value.ToList();
             _activeHints = normalized;
-            _hintMarkers = normalized.Take(3).ToList();
-            _hintOverflowText = normalized.Count > 3 ? $"+{normalized.Count - 3}" : string.Empty;
+            _hintMarkers = normalized.Take(4).ToList();
+            _hintOverflowText = string.Empty;
             OnPropertyChanged();
             OnPropertyChanged(nameof(HintMarkers));
             OnPropertyChanged(nameof(HasActiveHints));

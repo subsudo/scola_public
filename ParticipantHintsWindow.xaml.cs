@@ -63,11 +63,8 @@ public partial class ParticipantHintsWindow : Window
         {
             Type = type,
             Status = ParticipantHintStatuses.Active,
-            Date = type is ParticipantHintTypes.Exit or ParticipantHintTypes.StellwerkTest
+            Date = type is ParticipantHintTypes.Exit or ParticipantHintTypes.AmReport or ParticipantHintTypes.StellwerkTest
                 ? now.ToString("yyyy-MM-dd")
-                : string.Empty,
-            Month = type == ParticipantHintTypes.AmReport
-                ? now.ToString("yyyy-MM")
                 : string.Empty
         };
     }

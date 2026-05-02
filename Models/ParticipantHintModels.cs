@@ -96,7 +96,11 @@ public sealed class ParticipantHintDisplay
 {
     public string Type { get; init; } = ParticipantHintTypes.Free;
     public string Text { get; init; } = string.Empty;
+    public string Code { get; init; } = "N";
+    public string Value { get; init; } = string.Empty;
     public string MarkerColor { get; init; } = "#A8A29A";
+    public string PillBackground { get; init; } = "#E7E5E4";
+    public string PillForeground { get; init; } = "#292524";
     public bool IsOverdue { get; init; }
     public DateTime? SortDate { get; init; }
 }
@@ -119,6 +123,8 @@ public sealed class ParticipantHintSaveResult
 
 public sealed class ParticipantHintEditorItem : INotifyPropertyChanged
 {
+    private const int MaxNoteTextLength = 60;
+
     private string _status = ParticipantHintStatuses.Active;
     private string _date = string.Empty;
     private string _month = string.Empty;
@@ -136,7 +142,7 @@ public sealed class ParticipantHintEditorItem : INotifyPropertyChanged
         ParticipantHintTypes.Exit => "Austritt",
         ParticipantHintTypes.AmReport => "AM-Bericht",
         ParticipantHintTypes.StellwerkTest => "Stellwerk-Test",
-        _ => "Freier Hinweis"
+        _ => "Notiz"
     };
 
     public string Status
@@ -152,17 +158,43 @@ public sealed class ParticipantHintEditorItem : INotifyPropertyChanged
     }
 
     public bool IsActive => string.Equals(Status, ParticipantHintStatuses.Active, StringComparison.OrdinalIgnoreCase);
-    public bool ShowDate => Type is ParticipantHintTypes.Exit or ParticipantHintTypes.StellwerkTest or ParticipantHintTypes.Free;
-    public bool ShowMonth => Type == ParticipantHintTypes.AmReport;
-    public bool ShowSubject => Type == ParticipantHintTypes.StellwerkTest;
+    public bool ShowDate => true;
+    public bool ShowMonth => false;
+    public bool ShowSubject => false;
     public bool ShowText => Type == ParticipantHintTypes.Free;
-    public bool ShowNote => Type != ParticipantHintTypes.Free;
+    public bool ShowNote => false;
 
-    public string Date { get => _date; set => SetField(ref _date, value); }
+    public string Date
+    {
+        get => _date;
+        set
+        {
+            if (SetField(ref _date, value))
+            {
+                OnPropertyChanged(nameof(DateValue));
+            }
+        }
+    }
+
+    public DateTime? DateValue
+    {
+        get => TryParseDateInput(Date, out var date) ? date : null;
+        set
+        {
+            Date = value.HasValue
+                ? value.Value.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)
+                : string.Empty;
+        }
+    }
+
     public string Month { get => _month; set => SetField(ref _month, value); }
     public string Subject { get => _subject; set => SetField(ref _subject, value); }
     public string Note { get => _note; set => SetField(ref _note, value); }
-    public string Text { get => _text; set => SetField(ref _text, value); }
+    public string Text
+    {
+        get => _text;
+        set => SetField(ref _text, LimitText(value));
+    }
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
@@ -173,7 +205,9 @@ public sealed class ParticipantHintEditorItem : INotifyPropertyChanged
             Id = string.IsNullOrWhiteSpace(entry.Id) ? Guid.NewGuid().ToString("N") : entry.Id,
             Type = entry.Type,
             Status = string.IsNullOrWhiteSpace(entry.Status) ? ParticipantHintStatuses.Active : entry.Status,
-            Date = entry.Details.Date,
+            Date = string.IsNullOrWhiteSpace(entry.Details.Date) && entry.Type == ParticipantHintTypes.AmReport && !string.IsNullOrWhiteSpace(entry.Details.Month)
+                ? $"{entry.Details.Month}-01"
+                : entry.Details.Date,
             Month = entry.Details.Month,
             Subject = entry.Details.Subject,
             Note = entry.Details.Note,
@@ -193,10 +227,10 @@ public sealed class ParticipantHintEditorItem : INotifyPropertyChanged
             Details = new ParticipantHintDetails
             {
                 Date = NormalizeDateInput(Date),
-                Month = NormalizeMonthInput(Month),
-                Subject = Subject.Trim(),
-                Note = Note.Trim(),
-                Text = Text.Trim()
+                Month = string.Empty,
+                Subject = string.Empty,
+                Note = string.Empty,
+                Text = LimitText(Text)
             },
             UpdatedAtUtc = DateTime.UtcNow,
             UpdatedBy = updatedBy
@@ -211,15 +245,28 @@ public sealed class ParticipantHintEditorItem : INotifyPropertyChanged
             return string.Empty;
         }
 
-        if (DateTime.TryParseExact(trimmed, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var isoDate)
-            || DateTime.TryParseExact(trimmed, "dd.MM.yyyy", CultureInfo.GetCultureInfo("de-CH"), DateTimeStyles.None, out isoDate)
-            || DateTime.TryParseExact(trimmed, "dd.MM.yy", CultureInfo.GetCultureInfo("de-CH"), DateTimeStyles.None, out isoDate)
-            || DateTime.TryParse(trimmed, CultureInfo.CurrentCulture, DateTimeStyles.None, out isoDate))
+        if (TryParseDateInput(trimmed, out var isoDate))
         {
             return isoDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
         }
 
         return trimmed;
+    }
+
+    private static bool TryParseDateInput(string value, out DateTime date)
+    {
+        return DateTime.TryParseExact(value, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out date)
+               || DateTime.TryParseExact(value, "dd.MM.yyyy", CultureInfo.GetCultureInfo("de-CH"), DateTimeStyles.None, out date)
+               || DateTime.TryParseExact(value, "dd.MM.yy", CultureInfo.GetCultureInfo("de-CH"), DateTimeStyles.None, out date)
+               || DateTime.TryParse(value, CultureInfo.CurrentCulture, DateTimeStyles.None, out date);
+    }
+
+    private static string LimitText(string value)
+    {
+        var trimmed = value.Trim();
+        return trimmed.Length <= MaxNoteTextLength
+            ? trimmed
+            : trimmed[..MaxNoteTextLength];
     }
 
     private static string NormalizeMonthInput(string value)
