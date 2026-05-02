@@ -82,6 +82,7 @@ public partial class MainWindow : Window
     private readonly WordStaHost _wordStaHost;
     private readonly InitialsResolver _initialsResolver;
     private readonly DocxHeaderMetadataService _headerMetadataService;
+    private readonly ParticipantHintsService _participantHintsService;
     private readonly WeeklyScheduleService _weeklyScheduleService;
     private readonly AppUpdateService _appUpdateService;
     private readonly Dictionary<Participant, Border> _miniScheduleTrayHosts = new();
@@ -198,6 +199,7 @@ public partial class MainWindow : Window
         _headerMetadataService = new DocxHeaderMetadataService(
             Path.Combine(App.AppDataDirectoryPath, "header-metadata-cache.json"),
             Path.Combine(App.AppDataDirectoryPath, "header-metadata-cache.bak"));
+        _participantHintsService = new ParticipantHintsService(_config.ParticipantHintsStorePath);
         _weeklyScheduleService = new WeeklyScheduleService(
             App.WeeklyScheduleCachePath,
             App.WeeklyScheduleCacheBackupPath);
@@ -853,6 +855,7 @@ public partial class MainWindow : Window
             }
             RequestDynamicMinWidthRefresh();
             BeginHeaderMetadataWarmupForCurrentParticipants();
+            RefreshParticipantHintsForCurrentParticipants();
 
             var presentCount = Participants.Count(p => p.IsPresent);
             var absentCount = Participants.Count - presentCount;
@@ -1655,6 +1658,54 @@ public partial class MainWindow : Window
         await ToggleParticipantMiniScheduleAsync(participant);
     }
 
+    private void ParticipantCard_OnMouseRightButtonUp(object sender, MouseButtonEventArgs e)
+    {
+        if (sender is not Border { DataContext: Participant participant })
+        {
+            return;
+        }
+
+        var source = e.OriginalSource as DependencyObject;
+        var sourceButton = FindVisualAncestor<Button>(source);
+        var isNameButton = sourceButton?.CommandParameter is Participant buttonParticipant
+                           && ReferenceEquals(buttonParticipant, participant)
+                           && string.Equals(sourceButton.Content?.ToString(), participant.FullName, StringComparison.Ordinal);
+
+        if ((sourceButton is not null && !isNameButton)
+            || FindVisualAncestor<CheckBox>(source) is not null
+            || FindVisualAncestor<TextBox>(source) is not null)
+        {
+            return;
+        }
+
+        var menu = new ContextMenu
+        {
+            Background = BrushFromHex("#2A2B31"),
+            Foreground = BrushFromHex("#E0E0E0"),
+            BorderBrush = BrushFromHex("#3A3B42"),
+            BorderThickness = new Thickness(1),
+            PlacementTarget = sender as Border
+        };
+
+        var editHintsItem = new MenuItem
+        {
+            Header = "Hinweise bearbeiten..."
+        };
+        editHintsItem.Click += (_, _) => EditParticipantHints(participant);
+        menu.Items.Add(editHintsItem);
+
+        menu.IsOpen = true;
+        e.Handled = true;
+    }
+
+    private void EditHintsButton_OnClick(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button { CommandParameter: Participant participant })
+        {
+            EditParticipantHints(participant);
+        }
+    }
+
     private void NameButton_OnClick(object sender, RoutedEventArgs e)
     {
         if (sender is not Button { CommandParameter: Participant participant })
@@ -1687,6 +1738,7 @@ public partial class MainWindow : Window
                 participant.SelectedFolderPath = candidatePath;
                 UpdateActionState(participant);
                 BeginHeaderMetadataWarmupForCurrentParticipants();
+                RefreshParticipantHintsForParticipant(participant);
                 SetLastAction($"Ordnerkandidat gewählt für {participant.FullName}");
             };
             menu.Items.Add(menuItem);
@@ -3634,6 +3686,84 @@ public partial class MainWindow : Window
         participant.IsHeaderMetadataLoaded = false;
     }
 
+    private void RefreshParticipantHintsForCurrentParticipants()
+    {
+        foreach (var participant in Participants)
+        {
+            RefreshParticipantHintsForParticipant(participant);
+        }
+    }
+
+    private void RefreshParticipantHintsForParticipant(Participant participant)
+    {
+        var documentPath = ResolveDocumentPathForParticipant(participant);
+        if (string.IsNullOrWhiteSpace(documentPath) || !File.Exists(documentPath))
+        {
+            participant.ActiveHints = Array.Empty<ParticipantHintDisplay>();
+            return;
+        }
+
+        try
+        {
+            participant.ActiveHints = _participantHintsService.LoadActiveDisplays(documentPath);
+        }
+        catch (Exception ex)
+        {
+            participant.ActiveHints = Array.Empty<ParticipantHintDisplay>();
+            AppLogger.Warn($"Hinweise konnten fuer '{participant.FullName}' nicht geladen werden: {ex.Message}");
+        }
+    }
+
+    private void EditParticipantHints(Participant participant)
+    {
+        var documentPath = ResolveDocumentPathForParticipant(participant);
+        if (string.IsNullOrWhiteSpace(documentPath) || !File.Exists(documentPath))
+        {
+            ShowImportantAlert(
+                "Hinweise nicht verfügbar",
+                "Für diesen Teilnehmer ist noch keine Akte zugeordnet.",
+                "Wähle zuerst einen gültigen Ordner bzw. eine Verlaufsakte aus. Danach können Hinweise gespeichert werden.",
+                AppAlertKind.Info);
+            return;
+        }
+
+        var session = _participantHintsService.LoadEditorSession(documentPath);
+        if (!session.IsAvailable)
+        {
+            ShowImportantAlert(
+                "Hinweise nicht verfügbar",
+                "Die Hinweise können für diesen Teilnehmer nicht geladen werden.",
+                session.ErrorMessage,
+                AppAlertKind.Warning);
+            return;
+        }
+
+        var dialog = new ParticipantHintsWindow(participant.FullName, session.Record.Hints)
+        {
+            Owner = this
+        };
+
+        if (dialog.ShowDialog() != true)
+        {
+            return;
+        }
+
+        var result = _participantHintsService.SaveEditorSession(session, dialog.GetAllItems());
+        if (!result.Success)
+        {
+            ShowImportantAlert(
+                result.Conflict ? "Hinweise wurden geändert" : "Hinweise konnten nicht gespeichert werden",
+                result.Conflict ? "Die Hinweisdatei wurde zwischenzeitlich verändert." : "Beim Speichern ist ein Fehler aufgetreten.",
+                result.ErrorMessage,
+                result.Conflict ? AppAlertKind.Warning : AppAlertKind.Error);
+            return;
+        }
+
+        RefreshParticipantHintsForParticipant(participant);
+        ShowToast($"Hinweise gespeichert: {participant.FullName}", ToastType.Success);
+        SetLastAction($"Hinweise gespeichert: {participant.FullName}");
+    }
+
     private static void ResetParticipantMatch(Participant participant)
     {
         participant.MatchStatus = MatchStatus.NotFound;
@@ -3643,6 +3773,7 @@ public partial class MainWindow : Window
         participant.DocumentPath = string.Empty;
         participant.Initials = string.Empty;
         ResetParticipantHeaderMetadata(participant);
+        participant.ActiveHints = Array.Empty<ParticipantHintDisplay>();
     }
 
     // --- Status bar ---

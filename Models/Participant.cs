@@ -29,6 +29,9 @@ public class Participant : INotifyPropertyChanged
     private bool _canOpenAkteBi;
     private bool _canOpenAkteBe;
     private bool _canInsertEntryBi;
+    private IReadOnlyList<ParticipantHintDisplay> _activeHints = Array.Empty<ParticipantHintDisplay>();
+    private IReadOnlyList<ParticipantHintDisplay> _hintMarkers = Array.Empty<ParticipantHintDisplay>();
+    private string _hintOverflowText = string.Empty;
 
     public string FullName
     {
@@ -242,6 +245,28 @@ public class Participant : INotifyPropertyChanged
         get => _canInsertEntryBi;
         set => SetField(ref _canInsertEntryBi, value);
     }
+
+    public IReadOnlyList<ParticipantHintDisplay> ActiveHints
+    {
+        get => _activeHints;
+        set
+        {
+            var normalized = value.ToList();
+            _activeHints = normalized;
+            _hintMarkers = normalized.Take(3).ToList();
+            _hintOverflowText = normalized.Count > 3 ? $"+{normalized.Count - 3}" : string.Empty;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(HintMarkers));
+            OnPropertyChanged(nameof(HasActiveHints));
+            OnPropertyChanged(nameof(HasHintOverflow));
+            OnPropertyChanged(nameof(HintOverflowText));
+        }
+    }
+
+    public IReadOnlyList<ParticipantHintDisplay> HintMarkers => _hintMarkers;
+    public bool HasActiveHints => ActiveHints.Count > 0;
+    public bool HasHintOverflow => !string.IsNullOrWhiteSpace(HintOverflowText);
+    public string HintOverflowText => _hintOverflowText;
 
     public double DisplayOpacity => IsPresent ? 1.0 : 0.35;
     public bool ShowAbsenceStatus => !IsPresent;

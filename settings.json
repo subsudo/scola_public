@@ -21,6 +21,7 @@
   "WordBiBookmarkName": "_Berufsintegration",
   "WordBeBookmarkName": "_Beratung",
   "WordBiTableBookmarkName": "BI_BERUFSINTEGRATION_TABELLE",
-  "WordBiTodoBookmarkName": "BI_BERUFSINTEGRATION_TODO"
+  "WordBiTodoBookmarkName": "BI_BERUFSINTEGRATION_TODO",
+  "ParticipantHintsStorePath": ""
 }
 

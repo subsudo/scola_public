@@ -17,4 +17,5 @@ public class AppConfig
     public string WordBeBookmarkName { get; set; } = "_Beratung";
     public string WordBiTableBookmarkName { get; set; } = "BI_BERUFSINTEGRATION_TABELLE";
     public string WordBiTodoBookmarkName { get; set; } = "BI_BERUFSINTEGRATION_TODO";
+    public string ParticipantHintsStorePath { get; set; } = string.Empty;
 }

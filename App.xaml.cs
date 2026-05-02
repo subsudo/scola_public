@@ -98,6 +98,7 @@ public partial class App : System.Windows.Application
             Config.SecondaryServerBasePath ??= string.Empty;
             Config.TertiaryServerBasePath ??= string.Empty;
             Config.ScheduleRootPath ??= string.Empty;
+            Config.ParticipantHintsStorePath ??= string.Empty;
             Config.AbsenceValues ??= new List<string>();
             Config.PresenceValues ??= new List<string> { "anwesend" };
             if (string.IsNullOrWhiteSpace(Config.WordBookmarkName))
@@ -573,7 +574,8 @@ public partial class App : System.Windows.Application
                 WordBeBookmarkName = "_Beratung",
                 WordBiTableBookmarkName = "BI_BERUFSINTEGRATION_TABELLE"
                 ,
-                WordBiTodoBookmarkName = "BI_BERUFSINTEGRATION_TODO"
+                WordBiTodoBookmarkName = "BI_BERUFSINTEGRATION_TODO",
+                ParticipantHintsStorePath = string.Empty
             };
 
             var json = JsonSerializer.Serialize(defaultConfig, ConfigWriteSerializerOptions);
