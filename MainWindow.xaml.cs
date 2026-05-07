@@ -2075,7 +2075,7 @@ public partial class MainWindow : Window
             if (string.IsNullOrWhiteSpace(docPath))
                 return;
 
-            await _wordStaHost.RunAsync("OpenDocument", service => service.OpenDocument(docPath));
+            await _wordStaHost.RunAsync("OpenDocument", service => service.OpenDocument(docPath, bringToForeground: true));
 
             SetLastAction($"Akte geöffnet: {participant.FullName}");
             ShowToast($"Akte geöffnet: {participant.FullName}", ToastType.Success);
@@ -2125,7 +2125,7 @@ public partial class MainWindow : Window
             if (string.IsNullOrWhiteSpace(docPath))
                 return;
 
-            await _wordStaHost.RunAsync("OpenDocumentAtBookmark-BU", service => service.OpenDocumentAtBookmark(docPath, _config.WordBuBookmarkName));
+            await _wordStaHost.RunAsync("OpenDocumentAtBookmark-BU", service => service.OpenDocumentAtBookmark(docPath, _config.WordBuBookmarkName, bringToForeground: true));
             SetLastAction($"Akte geöffnet (BU): {participant.FullName}");
             ShowToast($"Akte BU geöffnet: {participant.FullName}", ToastType.Success);
             AppLogger.Info($"Akte BU geoeffnet: {docPath}");
@@ -2182,7 +2182,7 @@ public partial class MainWindow : Window
             if (string.IsNullOrWhiteSpace(docPath))
                 return;
 
-            await _wordStaHost.RunAsync("OpenDocumentAtBookmark-BI", service => service.OpenDocumentAtBookmark(docPath, _config.WordBiBookmarkName));
+            await _wordStaHost.RunAsync("OpenDocumentAtBookmark-BI", service => service.OpenDocumentAtBookmark(docPath, _config.WordBiBookmarkName, bringToForeground: true));
             SetLastAction($"Akte geöffnet (BI): {participant.FullName}");
             ShowToast($"Akte BI geöffnet: {participant.FullName}", ToastType.Success);
         }
@@ -2242,7 +2242,7 @@ public partial class MainWindow : Window
             if (string.IsNullOrWhiteSpace(docPath))
                 return;
 
-            await _wordStaHost.RunAsync("OpenDocumentAtBookmark-BE", service => service.OpenDocumentAtBookmark(docPath, _config.WordBeBookmarkName));
+            await _wordStaHost.RunAsync("OpenDocumentAtBookmark-BE", service => service.OpenDocumentAtBookmark(docPath, _config.WordBeBookmarkName, bringToForeground: true));
             SetLastAction($"Akte geöffnet (BE): {participant.FullName}");
             ShowToast($"Akte BE geöffnet: {participant.FullName}", ToastType.Success);
         }
@@ -2308,7 +2308,8 @@ public partial class MainWindow : Window
                     _config.WordBookmarkName,
                     2,
                     fallbackFields,
-                    clipboardText));
+                    clipboardText,
+                    bringToForeground: true));
             if (insertedFromClipboard)
             {
                 SetLastAction($"Eintrag eingefügt: {participant.FullName}");
@@ -2396,7 +2397,8 @@ public partial class MainWindow : Window
                     _config.WordBiTableBookmarkName,
                     2,
                     fallbackFields,
-                    clipboardText));
+                    clipboardText,
+                    bringToForeground: true));
             if (inserted)
             {
                 SetLastAction($"Eintrag BI eingefügt: {participant.FullName}");
@@ -2873,7 +2875,7 @@ public partial class MainWindow : Window
                     }
 
                     var operationName = $"{batchLabel} row {i + 1}/{mapping.Count}";
-                    await _wordStaHost.RunAsync(operationName, service => service.InsertTextRowToTable(docPath, bookmarkName, row));
+                    await _wordStaHost.RunAsync(operationName, service => service.InsertTextRowToTable(docPath, bookmarkName, row, bringToForeground: false));
                     results.Add(new BatchResult { Name = participant.FullName, IsSuccess = true, Message = "Eintrag eingefügt" });
                 }
                 catch (OperationCanceledException)

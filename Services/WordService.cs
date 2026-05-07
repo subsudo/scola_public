@@ -796,7 +796,7 @@ public class WordService
         return files;
     }
 
-    public void OpenDocumentAtBookmark(string docPath, string bookmarkName)
+    public void OpenDocumentAtBookmark(string docPath, string bookmarkName, bool bringToForeground = true)
     {
         AppLogger.Info($"Word.OpenDocumentAtBookmark start. Doc='{docPath}', Bookmark='{bookmarkName}'");
 
@@ -838,7 +838,7 @@ public class WordService
                 throw new InvalidOperationException($"Bookmark '{bookmarkName}' nicht gefunden. Bitte Vorlage prüfen.");
             }
 
-            FocusBookmarkAtTop(app, doc, bookmarkName);
+            FocusBookmarkAtTop(app, doc, bookmarkName, bringToForeground, docPath, lifecycle);
             operationSucceeded = true;
             shouldQuitCreatedApp = false;
             AppLogger.Info($"Word.OpenDocumentAtBookmark ok. Doc='{docPath}', Bookmark='{bookmarkName}'");
@@ -889,7 +889,7 @@ public class WordService
         }
     }
 
-    public void OpenDocument(string docPath)
+    public void OpenDocument(string docPath, bool bringToForeground = true)
     {
         AppLogger.Info($"Word.OpenDocument start. Doc='{docPath}'");
 
@@ -926,7 +926,7 @@ public class WordService
             LogWordLifecycleAppState(app, lifecycle, "AfterEnsureWordUiState");
             EnsureDocumentNotLocked(doc, openedHere);
 
-            FocusDocument(app, doc);
+            FocusDocument(app, doc, bringToForeground, docPath, lifecycle);
             operationSucceeded = true;
             shouldQuitCreatedApp = false;
             AppLogger.Info($"Word.OpenDocument ok. Doc='{docPath}'");
@@ -979,7 +979,7 @@ public class WordService
 
     public bool InsertClipboardToTable(string docPath, string bookmarkName)
     {
-        return InsertClipboardToTable(docPath, bookmarkName, 2, null, null);
+        return InsertClipboardToTable(docPath, bookmarkName, 2, null, null, true);
     }
 
     public bool InsertClipboardToTable(
@@ -987,7 +987,8 @@ public class WordService
         string bookmarkName,
         int firstDataRowIndex,
         string[]? fallbackFieldsWhenClipboardInvalid = null,
-        string? preReadClipboardText = null)
+        string? preReadClipboardText = null,
+        bool bringToForeground = true)
     {
         AppLogger.Info($"Word.InsertClipboardToTable start. Doc='{docPath}', Bookmark='{bookmarkName}'");
 
@@ -1124,7 +1125,7 @@ public class WordService
             {
                 editCell = targetTable.Cell((int)insertedRow!.Index, editColumn);
                 editRange = editCell.Range;
-                FocusRangeAtTop(app, editRange);
+                FocusRangeAtTop(app, editRange, bringToForeground, docPath, lifecycle);
             }
             finally
             {
@@ -1187,7 +1188,7 @@ public class WordService
         return GetClipboardTextWithRetry();
     }
 
-    public void InsertTextRowToTable(string docPath, string bookmarkName, string tabSeparatedRow)
+    public void InsertTextRowToTable(string docPath, string bookmarkName, string tabSeparatedRow, bool bringToForeground = false)
     {
         AppLogger.Info($"Word.InsertTextRowToTable start. Doc='{docPath}', Bookmark='{bookmarkName}'");
 
@@ -1268,7 +1269,7 @@ public class WordService
             {
                 editCell = targetTable.Cell((int)insertedRow.Index, 1);
                 editRange = editCell.Range;
-                FocusRangeAtTop(app, editRange);
+                FocusRangeAtTop(app, editRange, bringToForeground, docPath, lifecycle);
             }
             finally
             {
@@ -1524,7 +1525,7 @@ public class WordService
                 LogWordLifecycleDocumentSnapshot(userFacingApp, lifecycle, "AfterAddBiTodoDocumentFromTemplate");
                 EnsureWordUiState(userFacingApp, lifecycle);
                 LogWordLifecycleAppState(userFacingApp, lifecycle, "AfterEnsureWordUiState");
-                FocusDocument(userFacingApp, userFacingDoc);
+                FocusDocument(userFacingApp, userFacingDoc, false, handoffPath, lifecycle);
                 DeleteTempFileQuietly(handoffPath, "Word: Temporäre BI-Handoff-Datei konnte nicht gelöscht werden.");
                 handoffPath = null;
                 handoffSucceeded = true;
@@ -1700,7 +1701,11 @@ public class WordService
             return false;
         }
 
-        var mainWindowHandle = TryGetWordMainWindowHandle(app);
+        var mainWindowHandleRaw = TryReadInt64(() => Convert.ToInt64(((dynamic)app).Hwnd))
+                                  ?? TryReadComInt64Property(app, "Hwnd");
+        var mainWindowHandle = mainWindowHandleRaw.HasValue
+            ? new IntPtr(mainWindowHandleRaw.Value)
+            : IntPtr.Zero;
         var windowCount = TryReadInt(() => (int)((dynamic)app).Windows.Count);
         if (mainWindowHandle != IntPtr.Zero && (windowCount is null || windowCount > 0))
         {
@@ -2775,7 +2780,7 @@ public class WordService
                 : "EnsureWordUiState: Visible=true nach fehlgeschlagenem Visible-Lesen konservativ gesetzt.");
         }
 
-        TryBringWordToForeground(app);
+        LogWordLifecycle(context, "EnsureWordUiState: Kein pauschaler Foreground-Push; Fokus erfolgt nur bei interaktiven Aktionen.");
     }
 
     private static int CountUnsavedDocuments(dynamic app)
@@ -2998,7 +3003,13 @@ public class WordService
                string.Equals(left.FullName, right.FullName, StringComparison.OrdinalIgnoreCase);
     }
 
-    private static void FocusBookmarkAtTop(dynamic app, dynamic doc, string bookmarkName)
+    private static void FocusBookmarkAtTop(
+        dynamic app,
+        dynamic doc,
+        string bookmarkName,
+        bool bringToForeground,
+        string docPath,
+        WordLifecycleOperationContext? context = null)
     {
         // Word kann nach dem Oeffnen noch asynchron auf die zuletzt gespeicherte Position springen.
         // Deshalb mehrmals auf die Bookmark fokussieren.
@@ -3011,7 +3022,7 @@ public class WordService
             {
                 bookmark = doc.Bookmarks[bookmarkName];
                 targetRange = bookmark.Range;
-                FocusRangeAtTop(app, targetRange);
+                FocusRangeAtTop(app, targetRange, false, docPath, context);
             }
             finally
             {
@@ -3023,9 +3034,19 @@ public class WordService
                 Thread.Sleep(120);
             }
         }
+
+        if (bringToForeground)
+        {
+            TryBringTargetWordWindowToForeground(app, docPath, context);
+        }
     }
 
-    private static void FocusRangeAtTop(dynamic app, dynamic range)
+    private static void FocusRangeAtTop(
+        dynamic app,
+        dynamic range,
+        bool bringToForeground,
+        string docPath,
+        WordLifecycleOperationContext? context = null)
     {
         try
         {
@@ -3034,7 +3055,10 @@ public class WordService
             var start = (int)range.Start;
             app.Selection.SetRange(start, start);
             app.ActiveWindow?.ScrollIntoView(app.Selection.Range, true);
-            TryBringWordToForeground(app);
+            if (bringToForeground)
+            {
+                TryBringTargetWordWindowToForeground(app, docPath, context);
+            }
             return;
         }
         catch (Exception ex)
@@ -3053,10 +3077,18 @@ public class WordService
             AppLogger.Warn($"Word.Range.Select fallback fehlgeschlagen ({ex.GetType().Name}): {ex.Message}");
         }
 
-        TryBringWordToForeground(app);
+        if (bringToForeground)
+        {
+            TryBringTargetWordWindowToForeground(app, docPath, context);
+        }
     }
 
-    private static void FocusDocument(dynamic app, dynamic doc)
+    private static void FocusDocument(
+        dynamic app,
+        dynamic doc,
+        bool bringToForeground,
+        string docPath,
+        WordLifecycleOperationContext? context = null)
     {
         try
         {
@@ -3068,7 +3100,10 @@ public class WordService
         }
 
         TryActivateWordWindow(app);
-        TryBringWordToForeground(app);
+        if (bringToForeground)
+        {
+            TryBringTargetWordWindowToForeground(app, docPath, context);
+        }
     }
 
     private static void TryActivateWordWindow(dynamic app)
@@ -3083,14 +3118,89 @@ public class WordService
         }
     }
 
-    private static void TryBringWordToForeground(dynamic app)
+    private static void TryBringTargetWordWindowToForeground(
+        object app,
+        string docPath,
+        WordLifecycleOperationContext? context = null)
     {
-        var hwnd = TryGetWordMainWindowHandle(app);
-        if (hwnd == IntPtr.Zero)
+        var processIds = ResolveWordWindowDiagnosticProcessIds(app);
+        if (processIds.Count == 0)
+        {
+            LogWordLifecycle(context, "Foreground: Keine WINWORD-PID fuer gezielten Fokus ermittelbar.");
+            return;
+        }
+
+        var windows = SnapshotWordTopLevelWindows(processIds, Array.Empty<WordDocumentSnapshot>())
+            .Where(window => NativeMethods.IsWindowVisible(window.Hwnd))
+            .ToArray();
+        var match = TryFindTargetWordWindow(windows, docPath, context);
+        if (match is null)
         {
             return;
         }
 
+        TryForceForegroundWindow(match.Hwnd, match.ProcessId, context);
+    }
+
+    private static WordWindowSnapshot? TryFindTargetWordWindow(
+        IReadOnlyList<WordWindowSnapshot> windows,
+        string docPath,
+        WordLifecycleOperationContext? context)
+    {
+        var fileName = Path.GetFileName(docPath);
+        var fileNameWithoutExtension = Path.GetFileNameWithoutExtension(docPath);
+        var fullNameMatches = FindWordWindowTitleMatches(windows, fileName);
+        if (fullNameMatches.Count == 1)
+        {
+            LogForegroundMatch(context, fullNameMatches[0], fileName);
+            return fullNameMatches[0];
+        }
+
+        var stemMatches = FindWordWindowTitleMatches(windows, fileNameWithoutExtension);
+        if (stemMatches.Count == 1)
+        {
+            LogForegroundMatch(context, stemMatches[0], fileNameWithoutExtension);
+            return stemMatches[0];
+        }
+
+        var candidateCount = fullNameMatches.Count > 0 ? fullNameMatches.Count : stemMatches.Count;
+        LogWordLifecycle(
+            context,
+            candidateCount == 0
+                ? $"Foreground: Kein eindeutiges Word-Fenster fuer Doc='{SanitizeForLog(docPath)}' gefunden. WindowCount={windows.Count}."
+                : $"Foreground: Mehrere Word-Fensterkandidaten fuer Doc='{SanitizeForLog(docPath)}' gefunden. CandidateCount={candidateCount}; Fokus wird nicht erzwungen.");
+        return null;
+    }
+
+    private static IReadOnlyList<WordWindowSnapshot> FindWordWindowTitleMatches(
+        IReadOnlyList<WordWindowSnapshot> windows,
+        string? alias)
+    {
+        if (string.IsNullOrWhiteSpace(alias))
+        {
+            return Array.Empty<WordWindowSnapshot>();
+        }
+
+        return windows
+            .Where(window => window.Title.Contains(alias.Trim(), StringComparison.OrdinalIgnoreCase))
+            .ToArray();
+    }
+
+    private static void LogForegroundMatch(
+        WordLifecycleOperationContext? context,
+        WordWindowSnapshot window,
+        string? matchAlias)
+    {
+        LogWordLifecycle(
+            context,
+            $"Foreground: TargetMatch Hwnd={FormatHwnd(window.Hwnd)}, Pid={window.ProcessId}, Title='{SanitizeForLog(window.Title)}', MatchAlias='{SanitizeForLog(matchAlias)}'.");
+    }
+
+    private static void TryForceForegroundWindow(
+        IntPtr hwnd,
+        int processId,
+        WordLifecycleOperationContext? context)
+    {
         try
         {
             if (NativeMethods.IsIconic(hwnd))
@@ -3098,8 +3208,62 @@ public class WordService
                 NativeMethods.ShowWindowAsync(hwnd, NativeMethods.SW_RESTORE);
             }
 
-            NativeMethods.SetForegroundWindow(hwnd);
+            NativeMethods.AllowSetForegroundWindow((uint)processId);
+            var foregroundSet = NativeMethods.SetForegroundWindow(hwnd);
             Thread.Sleep(WordForegroundRetryDelayMs);
+
+            if (!foregroundSet)
+            {
+                foregroundSet = TrySetForegroundWindowWithThreadInput(hwnd, context);
+            }
+
+            if (foregroundSet)
+            {
+                LogWordLifecycle(context, $"Foreground: Ziel-Fenster nach vorne geholt. Hwnd={FormatHwnd(hwnd)}, Pid={processId}.");
+            }
+            else
+            {
+                LogWordLifecycle(context, $"Foreground: SetForegroundWindow wurde von Windows nicht akzeptiert. Hwnd={FormatHwnd(hwnd)}, Pid={processId}.");
+            }
+        }
+        catch (Exception ex)
+        {
+            AppLogger.Warn($"Word foreground fallback fehlgeschlagen ({ex.GetType().Name}): {ex.Message}");
+            LogWordLifecycle(context, $"Foreground: Fehler. Type='{SanitizeForLog(ex.GetType().Name)}', Message='{SanitizeForLog(ex.Message)}'.");
+        }
+    }
+
+    private static bool TrySetForegroundWindowWithThreadInput(
+        IntPtr hwnd,
+        WordLifecycleOperationContext? context)
+    {
+        uint targetThreadId = 0;
+        uint foregroundThreadId = 0;
+        var currentThreadId = NativeMethods.GetCurrentThreadId();
+        var attachedTarget = false;
+        var attachedForeground = false;
+
+        try
+        {
+            targetThreadId = NativeMethods.GetWindowThreadProcessId(hwnd, out _);
+            var foregroundWindow = NativeMethods.GetForegroundWindow();
+            if (foregroundWindow != IntPtr.Zero)
+            {
+                foregroundThreadId = NativeMethods.GetWindowThreadProcessId(foregroundWindow, out _);
+            }
+
+            if (targetThreadId != 0 && targetThreadId != currentThreadId)
+            {
+                attachedTarget = NativeMethods.AttachThreadInput(currentThreadId, targetThreadId, true);
+            }
+
+            if (foregroundThreadId != 0 &&
+                foregroundThreadId != currentThreadId &&
+                foregroundThreadId != targetThreadId)
+            {
+                attachedForeground = NativeMethods.AttachThreadInput(currentThreadId, foregroundThreadId, true);
+            }
+
             if (NativeMethods.IsIconic(hwnd))
             {
                 NativeMethods.ShowWindowAsync(hwnd, NativeMethods.SW_RESTORE);
@@ -3109,32 +3273,25 @@ public class WordService
                 NativeMethods.ShowWindowAsync(hwnd, NativeMethods.SW_SHOW);
             }
 
-            NativeMethods.SetForegroundWindow(hwnd);
+            return NativeMethods.SetForegroundWindow(hwnd);
         }
         catch (Exception ex)
         {
-            AppLogger.Warn($"Word foreground fallback fehlgeschlagen ({ex.GetType().Name}): {ex.Message}");
+            LogWordLifecycle(context, $"Foreground: AttachThreadInput-Fallback fehlgeschlagen. Type='{SanitizeForLog(ex.GetType().Name)}', Message='{SanitizeForLog(ex.Message)}'.");
+            return false;
         }
-    }
-
-    private static IntPtr TryGetWordMainWindowHandle(dynamic app)
-    {
-        try
+        finally
         {
-            var hwndRaw = (int)app.Hwnd;
-            if (hwndRaw > 0)
+            if (attachedForeground)
             {
-                return new IntPtr(hwndRaw);
+                NativeMethods.AttachThreadInput(currentThreadId, foregroundThreadId, false);
+            }
+
+            if (attachedTarget)
+            {
+                NativeMethods.AttachThreadInput(currentThreadId, targetThreadId, false);
             }
         }
-        catch (Exception ex)
-        {
-            AppLogger.Warn($"Word.Hwnd konnte nicht gelesen werden ({ex.GetType().Name}): {ex.Message}");
-        }
-
-        AppLogger.Debug("Word.Hwnd nicht verfuegbar; ActiveWindow.Hwnd-Fallback wird bewusst uebersprungen.");
-
-        return IntPtr.Zero;
     }
 
     private static void TryQuitWordApplication(dynamic? app, string? infoMessage = null)
@@ -3925,9 +4082,27 @@ public class WordService
         [return: MarshalAs(UnmanagedType.Bool)]
         public static extern bool SetForegroundWindow(IntPtr hWnd);
 
+        [DllImport("user32.dll", SetLastError = true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        public static extern bool AllowSetForegroundWindow(uint dwProcessId);
+
+        [DllImport("user32.dll")]
+        public static extern IntPtr GetForegroundWindow();
+
+        [DllImport("kernel32.dll")]
+        public static extern uint GetCurrentThreadId();
+
+        [DllImport("user32.dll", SetLastError = true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        public static extern bool AttachThreadInput(uint idAttach, uint idAttachTo, bool fAttach);
+
         [DllImport("user32.dll")]
         [return: MarshalAs(UnmanagedType.Bool)]
         public static extern bool IsIconic(IntPtr hWnd);
+
+        [DllImport("user32.dll")]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        public static extern bool IsWindowVisible(IntPtr hWnd);
 
         [DllImport("user32.dll", SetLastError = true)]
         public static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint lpdwProcessId);
