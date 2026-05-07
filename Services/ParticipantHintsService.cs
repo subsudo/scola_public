@@ -45,6 +45,39 @@ public sealed class ParticipantHintsService
             : BuildDisplayHints(session.Record.Hints);
     }
 
+    public IReadOnlyDictionary<string, IReadOnlyList<ParticipantHintDisplay>> LoadActiveDisplaysForDocuments(IEnumerable<string> documentPaths)
+    {
+        var paths = documentPaths
+            .Where(path => !string.IsNullOrWhiteSpace(path))
+            .Select(path => path.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        var result = new Dictionary<string, IReadOnlyList<ParticipantHintDisplay>>(StringComparer.OrdinalIgnoreCase);
+        if (paths.Count == 0)
+        {
+            return result;
+        }
+
+        var document = LoadDocument();
+        foreach (var path in paths)
+        {
+            if (!TryCanonicalizeDocumentPath(path, out var canonicalPath, out var error))
+            {
+                result[path] = Array.Empty<ParticipantHintDisplay>();
+                AppLogger.Debug($"HinweiseRefresh: Aktenpfad konnte nicht kanonisiert werden. Path='{path}', Error='{error}'");
+                continue;
+            }
+
+            var record = FindRecord(document, canonicalPath);
+            result[path] = record is null
+                ? Array.Empty<ParticipantHintDisplay>()
+                : BuildDisplayHints(record.Hints);
+        }
+
+        return result;
+    }
+
     public ParticipantHintEditSession LoadEditorSession(string documentPath)
     {
         if (!TryCanonicalizeDocumentPath(documentPath, out var canonicalPath, out var error))

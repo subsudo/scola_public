@@ -126,7 +126,9 @@
                             <DatePicker Style="{StaticResource HintDatePicker}"
                                         SelectedDate="{Binding DateValue, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
                         </StackPanel>
-                        <StackPanel Grid.Column="2" Visibility="{Binding ShowText, Converter={StaticResource BoolToVisibility}}">
+                        <StackPanel Grid.Column="0"
+                                    Grid.ColumnSpan="3"
+                                    Visibility="{Binding ShowText, Converter={StaticResource BoolToVisibility}}">
                             <TextBlock Style="{StaticResource HintFieldLabel}" Text="Notiz (max. 60 Zeichen)" />
                             <TextBox Style="{StaticResource HintTextBox}"
                                      MaxLength="60"

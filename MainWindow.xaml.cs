@@ -73,6 +73,7 @@ public partial class MainWindow : Window
     private const double MinResultsWindowHeightAllowance = 120;
     private const double CollapseAnimationDurationMilliseconds = 170;
     private static readonly TimeSpan WeeklyScheduleRetryInterval = TimeSpan.FromMinutes(3);
+    private static readonly TimeSpan ParticipantHintsRefreshInterval = TimeSpan.FromMinutes(3);
     private static readonly string ApplicationVersionText = BuildApplicationVersionText();
 
     private readonly AppConfig _config;
@@ -94,6 +95,7 @@ public partial class MainWindow : Window
     private bool _isBiTodoCollapsed = true;
     private readonly DispatcherTimer _layoutDebounceTimer;
     private readonly DispatcherTimer _weeklyScheduleRetryTimer;
+    private readonly DispatcherTimer _participantHintsRefreshTimer;
     private CancellationTokenSource? _batchCancellation;
     private bool _isBatchRunning;
     private EntryBatchKind _runningBatchKind = EntryBatchKind.None;
@@ -112,6 +114,8 @@ public partial class MainWindow : Window
     private bool _startupUpdateCheckStarted;
     private bool _isUpdateShutdownRequested;
     private bool _isWeeklyScheduleRetryRunning;
+    private bool _isParticipantHintsEditorOpen;
+    private DateTime? _lastKnownParticipantHintsStoreWriteTimeUtc;
 
     public static readonly DependencyProperty ShowParticipantInitialsProperty = RegisterLayoutProperty(nameof(ShowParticipantInitials), true);
     public static readonly DependencyProperty ShowBtnOdooProperty = RegisterLayoutProperty(nameof(ShowBtnOdoo), false);
@@ -218,6 +222,11 @@ public partial class MainWindow : Window
             Interval = WeeklyScheduleRetryInterval
         };
         _weeklyScheduleRetryTimer.Tick += WeeklyScheduleRetryTimer_OnTick;
+        _participantHintsRefreshTimer = new DispatcherTimer
+        {
+            Interval = ParticipantHintsRefreshInterval
+        };
+        _participantHintsRefreshTimer.Tick += ParticipantHintsRefreshTimer_OnTick;
 
         Participants = new ObservableCollection<Participant>();
         BatchResults = new ObservableCollection<BatchResult>();
@@ -384,6 +393,7 @@ public partial class MainWindow : Window
         }
 
         _weeklyScheduleRetryTimer.Stop();
+        _participantHintsRefreshTimer.Stop();
         SaveWindowBoundsToPrefs();
         _wordStaHost.Dispose();
     }
@@ -411,12 +421,18 @@ public partial class MainWindow : Window
         }
 
         UpdateWeeklyScheduleRetryTimerState();
+        UpdateParticipantHintsRefreshTimerState();
         await EnsureCurrentWeekScheduleLoadedAsync("Startup");
     }
 
     private async void WeeklyScheduleRetryTimer_OnTick(object? sender, EventArgs e)
     {
         await EnsureCurrentWeekScheduleLoadedAsync("Timer");
+    }
+
+    private void ParticipantHintsRefreshTimer_OnTick(object? sender, EventArgs e)
+    {
+        RefreshParticipantHintsIfStoreChanged();
     }
 
     private void UpdateWeeklyScheduleRetryTimerState()
@@ -442,6 +458,82 @@ public partial class MainWindow : Window
         {
             _weeklyScheduleRetryTimer.Start();
             AppLogger.Debug($"MiniScheduleRetry: Timer gestartet. Intervall='{WeeklyScheduleRetryInterval}'.");
+        }
+    }
+
+    private void UpdateParticipantHintsRefreshTimerState()
+    {
+        if (!IsLoaded || _isUpdateShutdownRequested)
+        {
+            _participantHintsRefreshTimer.Stop();
+            return;
+        }
+
+        if (!_participantHintsRefreshTimer.IsEnabled)
+        {
+            _lastKnownParticipantHintsStoreWriteTimeUtc = TryGetParticipantHintsStoreLastWriteTimeUtc(logFailures: false);
+            _participantHintsRefreshTimer.Start();
+            AppLogger.Debug($"HinweiseRefresh: Timer gestartet. Intervall='{ParticipantHintsRefreshInterval}', Path='{_participantHintsService.StorePath}'.");
+        }
+    }
+
+    private void RefreshParticipantHintsIfStoreChanged()
+    {
+        if (_isParticipantHintsEditorOpen)
+        {
+            AppLogger.Debug("HinweiseRefresh: Editor offen, Auto-Refresh uebersprungen.");
+            return;
+        }
+
+        var currentWriteTimeUtc = TryGetParticipantHintsStoreLastWriteTimeUtc(logFailures: true);
+        if (!currentWriteTimeUtc.HasValue)
+        {
+            return;
+        }
+
+        if (!_lastKnownParticipantHintsStoreWriteTimeUtc.HasValue)
+        {
+            _lastKnownParticipantHintsStoreWriteTimeUtc = currentWriteTimeUtc;
+            AppLogger.Info("HinweiseRefresh: Gemeinsame Hinweisdatei ist erstmals erreichbar; aktuelle Teilnehmer werden aktualisiert.");
+            RefreshParticipantHintsForCurrentParticipants();
+            return;
+        }
+
+        if (currentWriteTimeUtc.Value <= _lastKnownParticipantHintsStoreWriteTimeUtc.Value)
+        {
+            return;
+        }
+
+        _lastKnownParticipantHintsStoreWriteTimeUtc = currentWriteTimeUtc;
+        AppLogger.Info("HinweiseRefresh: Aenderung an gemeinsamer Hinweisdatei erkannt; aktuelle Teilnehmer werden aktualisiert.");
+        RefreshParticipantHintsForCurrentParticipants();
+    }
+
+    private DateTime? TryGetParticipantHintsStoreLastWriteTimeUtc(bool logFailures)
+    {
+        try
+        {
+            var storePath = _participantHintsService.StorePath;
+            if (string.IsNullOrWhiteSpace(storePath) || !File.Exists(storePath))
+            {
+                if (logFailures)
+                {
+                    AppLogger.Debug($"HinweiseRefresh: Hinweisdatei nicht erreichbar oder noch nicht vorhanden. Path='{storePath}'.");
+                }
+
+                return null;
+            }
+
+            return File.GetLastWriteTimeUtc(storePath);
+        }
+        catch (Exception ex)
+        {
+            if (logFailures)
+            {
+                AppLogger.Warn($"HinweiseRefresh: Metadaten der Hinweisdatei konnten nicht gelesen werden. Path='{_participantHintsService.StorePath}', Error='{ex.Message}'");
+            }
+
+            return null;
         }
     }
 
@@ -3694,9 +3786,43 @@ public partial class MainWindow : Window
 
     private void RefreshParticipantHintsForCurrentParticipants()
     {
+        var participantsWithDocuments = new List<(Participant Participant, string DocumentPath)>();
         foreach (var participant in Participants)
         {
-            RefreshParticipantHintsForParticipant(participant);
+            var documentPath = participant.DocumentPath;
+            if (string.IsNullOrWhiteSpace(documentPath) || !File.Exists(documentPath))
+            {
+                participant.ActiveHints = Array.Empty<ParticipantHintDisplay>();
+                continue;
+            }
+
+            participantsWithDocuments.Add((participant, documentPath));
+        }
+
+        if (participantsWithDocuments.Count == 0)
+        {
+            return;
+        }
+
+        try
+        {
+            var displaysByPath = _participantHintsService.LoadActiveDisplaysForDocuments(
+                participantsWithDocuments.Select(item => item.DocumentPath));
+
+            foreach (var (participant, documentPath) in participantsWithDocuments)
+            {
+                participant.ActiveHints = displaysByPath.TryGetValue(documentPath, out var hints)
+                    ? hints
+                    : Array.Empty<ParticipantHintDisplay>();
+            }
+        }
+        catch (Exception ex)
+        {
+            AppLogger.Warn($"Hinweise konnten fuer die aktuelle Teilnehmerliste nicht aktualisiert werden: {ex.Message}");
+            foreach (var (participant, _) in participantsWithDocuments)
+            {
+                participant.ActiveHints = Array.Empty<ParticipantHintDisplay>();
+            }
         }
     }
 
@@ -3749,7 +3875,18 @@ public partial class MainWindow : Window
             Owner = this
         };
 
-        if (dialog.ShowDialog() != true)
+        bool? dialogResult;
+        _isParticipantHintsEditorOpen = true;
+        try
+        {
+            dialogResult = dialog.ShowDialog();
+        }
+        finally
+        {
+            _isParticipantHintsEditorOpen = false;
+        }
+
+        if (dialogResult != true)
         {
             return;
         }
@@ -3766,6 +3903,7 @@ public partial class MainWindow : Window
         }
 
         RefreshParticipantHintsForParticipant(participant);
+        _lastKnownParticipantHintsStoreWriteTimeUtc = TryGetParticipantHintsStoreLastWriteTimeUtc(logFailures: false);
         ShowToast($"Hinweise gespeichert: {participant.FullName}", ToastType.Success);
         SetLastAction($"Hinweise gespeichert: {participant.FullName}");
     }
