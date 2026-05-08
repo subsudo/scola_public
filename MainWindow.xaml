@@ -1183,7 +1183,13 @@
                             Margin="0,0,8,0">
                     <Button Style="{StaticResource TitleBarButtonStyle}"
                             Click="SettingsButton_OnClick"
-                            Content="⚙" />
+                            ToolTip="Einstellungen">
+                        <Image Source="Assets/Einstellungen.png"
+                               Width="16"
+                               Height="16"
+                               RenderOptions.BitmapScalingMode="HighQuality"
+                               SnapsToDevicePixels="True" />
+                    </Button>
                     <Button Style="{StaticResource WindowControlButtonStyle}"
                             Click="MinimizeButton_OnClick"
                             Content="&#xE921;"

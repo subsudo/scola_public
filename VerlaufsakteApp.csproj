@@ -27,6 +27,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <None Remove="Assets\Einstellungen.png" />
+    <Resource Include="Assets\Einstellungen.png" />
+  </ItemGroup>
+
+  <ItemGroup>
     <Compile Remove="ScolaUpdater\**\*.cs" />
     <EmbeddedResource Remove="ScolaUpdater\**\*" />
     <Page Remove="ScolaUpdater\**\*" />
